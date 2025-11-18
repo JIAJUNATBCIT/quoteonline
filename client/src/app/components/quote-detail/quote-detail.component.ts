@@ -66,6 +66,7 @@ export class QuoteDetailComponent implements OnInit {
   getStatusDisplayName(status: string): string {
     const statusNames: { [key: string]: string } = {
       'pending': '待处理',
+      'supplier_quoted': '供应商已报价',
       'in_progress': '处理中',
       'completed': '已完成',
       'cancelled': '已取消',
@@ -121,18 +122,23 @@ export class QuoteDetailComponent implements OnInit {
         return;
       }
       
-      this.uploadQuoterFile(file);
+      const user = this.authService.getCurrentUser();
+      if (user?.role === 'supplier') {
+        this.uploadSupplierFile(file);
+      } else {
+        this.uploadQuoterFile(file);
+      }
     }
   }
 
-  uploadQuoterFile(file: File) {
+  uploadSupplierFile(file: File) {
     if (!this.quote) return;
     
     this.uploading = true;
     this.uploadProgress = 0;
     
     const formData = new FormData();
-    formData.append('quoterFile', file);
+    formData.append('file', file);
     
     // 创建带进度的HTTP请求
     const xhr = new XMLHttpRequest();
@@ -153,14 +159,83 @@ export class QuoteDetailComponent implements OnInit {
         try {
           const updatedQuote = JSON.parse(xhr.responseText);
           this.quote = updatedQuote;
-          alert('报价文件上传成功');
+          alert('供应商报价文件上传成功');
         } catch (error) {
           console.error('解析响应失败:', error);
           alert('上传响应解析失败');
         }
       } else {
         console.error('上传失败:', xhr.status, xhr.responseText);
-        alert('上传报价文件失败');
+        alert('上传供应商报价文件失败');
+      }
+    });
+    
+    // 监听错误
+    xhr.addEventListener('error', () => {
+      this.uploading = false;
+      this.uploadProgress = 0;
+      console.error('网络错误');
+      alert('网络错误，上传失败');
+    });
+    
+    // 监听超时
+    xhr.addEventListener('timeout', () => {
+      this.uploading = false;
+      this.uploadProgress = 0;
+      console.error('上传超时');
+      alert('上传超时，请重试');
+    });
+    
+    // 配置请求
+    xhr.timeout = 60000; // 60秒超时
+    xhr.open('PUT', `${environment.apiUrl}/quotes/${this.quote._id}`);
+    
+    // 添加认证头
+    const token = localStorage.getItem('token');
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+    
+    // 发送请求
+    xhr.send(formData);
+  }
+
+  uploadQuoterFile(file: File) {
+    if (!this.quote) return;
+    
+    this.uploading = true;
+    this.uploadProgress = 0;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // 创建带进度的HTTP请求
+    const xhr = new XMLHttpRequest();
+    
+    // 监听上传进度
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        this.uploadProgress = Math.round((event.loaded / event.total) * 100);
+      }
+    });
+    
+    // 监听响应
+    xhr.addEventListener('load', () => {
+      this.uploading = false;
+      this.uploadProgress = 0;
+      
+      if (xhr.status === 200) {
+        try {
+          const updatedQuote = JSON.parse(xhr.responseText);
+          this.quote = updatedQuote;
+          alert('最终报价文件上传成功');
+        } catch (error) {
+          console.error('解析响应失败:', error);
+          alert('上传响应解析失败');
+        }
+      } else {
+        console.error('上传失败:', xhr.status, xhr.responseText);
+        alert('上传最终报价文件失败');
       }
     });
     
@@ -268,8 +343,12 @@ export class QuoteDetailComponent implements OnInit {
       return this.quote.customer._id === user.id;
     }
     
+    if (user.role === 'supplier') {
+      return this.quote.status === 'pending';
+    }
+    
     if (user.role === 'quoter') {
-      return this.quote.status === 'pending' || this.quote.status === 'in_progress';
+      return this.quote.status === 'pending' || this.quote.status === 'supplier_quoted' || this.quote.status === 'in_progress';
     }
     
     return true; // admin can edit all
@@ -280,13 +359,13 @@ export class QuoteDetailComponent implements OnInit {
     const user = this.authService.getCurrentUser();
     if (!user) return false;
     
-    // 客户不能拒绝报价
-    if (user.role === 'customer') {
+    // 客户和供应商不能拒绝报价
+    if (user.role === 'customer' || user.role === 'supplier') {
       return false;
     }
     
-    // 只有待处理或处理中的询价单可以被拒绝
-    return this.quote.status === 'pending' || this.quote.status === 'in_progress';
+    // 只有待处理、供应商已报价或处理中的询价单可以被拒绝
+    return this.quote.status === 'pending' || this.quote.status === 'supplier_quoted' || this.quote.status === 'in_progress';
   }
 
   rejectQuote() {

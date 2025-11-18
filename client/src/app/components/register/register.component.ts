@@ -52,6 +52,8 @@ export class RegisterComponent {
     this.error = '';
 
     const { confirmPassword, ...userData } = this.registerForm.value;
+    // 默认角色为客户
+    userData.role = 'customer';
 
     this.authService.register(userData).subscribe({
       next: () => {

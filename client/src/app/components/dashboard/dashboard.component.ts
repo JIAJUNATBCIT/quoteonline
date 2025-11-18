@@ -39,6 +39,7 @@ export class DashboardComponent implements OnInit {
   getStatusDisplayName(status: string): string {
     const statusNames: { [key: string]: string } = {
       'pending': '待处理',
+      'supplier_quoted': '供应商已报价',
       'in_progress': '处理中',
       'completed': '已完成',
       'cancelled': '已取消',

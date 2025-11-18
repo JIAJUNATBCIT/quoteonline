@@ -34,9 +34,19 @@ const QuoteSchema = new mongoose.Schema({
     path: String,
     size: Number
   },
+  supplierFile: {
+    filename: String,
+    originalName: String,
+    path: String,
+    size: Number
+  },
+  supplier: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   status: {
     type: String,
-    enum: ['pending', 'in_progress', 'completed', 'cancelled', 'rejected'],
+    enum: ['pending', 'supplier_quoted', 'in_progress', 'completed', 'cancelled', 'rejected'],
     default: 'pending'
   },
   customerMessage: {
@@ -66,12 +76,14 @@ const QuoteSchema = new mongoose.Schema({
 QuoteSchema.index({ quoteNumber: 1 }, { unique: true });
 QuoteSchema.index({ customer: 1 });
 QuoteSchema.index({ quoter: 1 });
+QuoteSchema.index({ supplier: 1 });
 QuoteSchema.index({ status: 1 });
 QuoteSchema.index({ createdAt: -1 });
 
 // 复合索引优化常用查询
 QuoteSchema.index({ customer: 1, status: 1 });
 QuoteSchema.index({ quoter: 1, status: 1 });
+QuoteSchema.index({ supplier: 1, status: 1 });
 QuoteSchema.index({ status: 1, createdAt: -1 });
 QuoteSchema.index({ customer: 1, createdAt: -1 });
 
