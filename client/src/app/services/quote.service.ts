@@ -15,11 +15,13 @@ export interface Quote {
   quoteNumber: string;
   customer: any;
   quoter?: any;
+  supplier?: any;
   title: string;
   description?: string;
   customerFile?: QuoteFile;
   quoterFile?: QuoteFile;
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'rejected';
+  supplierFile?: QuoteFile;
+  status: 'pending' | 'supplier_quoted' | 'in_progress' | 'completed' | 'cancelled' | 'rejected';
   customerMessage?: string;
   quoterMessage?: string;
   rejectReason?: string;

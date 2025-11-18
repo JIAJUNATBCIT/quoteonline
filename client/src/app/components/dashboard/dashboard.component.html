@@ -21,8 +21,26 @@
       </div>
     </div>
     
+    <div class="col-md-3" *ngIf="authService.hasRole('supplier')">
+      <div class="card text-white bg-info">
+        <div class="card-body">
+          <h5 class="card-title">待处理</h5>
+          <h2 class="card-text">{{ getQuoteCountByStatus('pending') }}</h2>
+        </div>
+      </div>
+    </div>
+    
     <div class="col-md-3" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
       <div class="card text-white bg-info">
+        <div class="card-body">
+          <h5 class="card-title">供应商已报价</h5>
+          <h2 class="card-text">{{ getQuoteCountByStatus('supplier_quoted') }}</h2>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-3" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
+      <div class="card text-white bg-secondary">
         <div class="card-body">
           <h5 class="card-title">处理中</h5>
           <h2 class="card-text">{{ getQuoteCountByStatus('in_progress') }}</h2>
@@ -83,8 +101,9 @@
               <tr>
                 <th>询价号</th>
                 <th>标题</th>
-                <th *ngIf="authService.hasRole('customer') || authService.hasRole('admin')">客户</th>
+                <th *ngIf="authService.hasRole('customer') || authService.hasRole('quoter') || authService.hasRole('admin')">客户</th>
                 <th *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">报价员</th>
+                <th *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">供应商</th>
                 <th>状态</th>
                 <th>创建时间</th>
                 <th>操作</th>
@@ -99,8 +118,9 @@
                   <strong>{{ quote.title }}</strong>
                   <div class="text-muted small">{{ quote.description }}</div>
                 </td>
-                <td *ngIf="authService.hasRole('customer') || authService.hasRole('admin')">{{ quote.customer.name }}</td>
+                <td *ngIf="authService.hasRole('customer') || authService.hasRole('quoter') || authService.hasRole('admin')">{{ quote.customer.name }}</td>
                 <td *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">{{ quote.quoter?.name || '-' }}</td>
+                <td *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">{{ quote.supplier?.name || '-' }}</td>
                 <td>
                   <span class="status-badge status-{{ quote.status }}">
                     {{ getStatusDisplayName(quote.status) }}

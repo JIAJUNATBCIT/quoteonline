@@ -288,6 +288,165 @@ const EmailTemplates = {
     </html>
   `,
 
+  // 生成供应商报价通知邮件模板
+  supplierQuoteNotification: (quote) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>供应商报价通知</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #f4f4f4;
+        }
+        .container {
+          background-color: #ffffff;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          overflow: hidden;
+        }
+        .header {
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+          padding: 30px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 300;
+        }
+        .content {
+          padding: 30px 20px;
+        }
+        .info-box {
+          background-color: #f8f9fa;
+          border-left: 4px solid #28a745;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 0 4px 4px 0;
+        }
+        .info-item {
+          margin: 10px 0;
+          display: flex;
+          align-items: center;
+        }
+        .info-label {
+          font-weight: bold;
+          color: #495057;
+          min-width: 100px;
+        }
+        .info-value {
+          color: #212529;
+        }
+        .btn {
+          display: inline-block;
+          padding: 12px 24px;
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: 500;
+          margin: 15px 5px;
+          transition: all 0.3s ease;
+        }
+        .btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        .footer {
+          background-color: #f8f9fa;
+          padding: 20px;
+          text-align: center;
+          color: #6c757d;
+          font-size: 14px;
+        }
+        .supplier-info {
+          background-color: #e3f2fd;
+          border-left: 4px solid #2196f3;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 0 4px 4px 0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📋 供应商报价通知</h1>
+        </div>
+        
+        <div class="content">
+          <p>您好！</p>
+          <p>供应商已完成询价单的报价，请及时处理并上传最终报价文件。</p>
+          
+          <div class="info-box">
+            <h3>📄 询价单信息</h3>
+            <div class="info-item">
+              <span class="info-label">询价单号:</span>
+              <span class="info-value">${escapeHtml(quote.quoteNumber)}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">询价标题:</span>
+              <span class="info-value">${escapeHtml(quote.title)}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">询价描述:</span>
+              <span class="info-value">${escapeHtml(quote.description || '无')}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">当前状态:</span>
+              <span class="info-value">供应商已报价</span>
+            </div>
+          </div>
+          
+          ${quote.supplier ? `
+          <div class="supplier-info">
+            <h3>🏢 供应商信息</h3>
+            <div class="info-item">
+              <span class="info-label">供应商:</span>
+              <span class="info-value">${escapeHtml(quote.supplier.name || '未知')}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">公司:</span>
+              <span class="info-value">${escapeHtml(quote.supplier.company || '未知')}</span>
+            </div>
+            ${quote.supplierFile ? `
+            <div class="info-item">
+              <span class="info-label">报价文件:</span>
+              <span class="info-value">${escapeHtml(quote.supplierFile.originalName)}</span>
+            </div>
+            ` : ''}
+          </div>
+          ` : ''}
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:4200'}/quotes/${quote._id}" class="btn">
+              📝 查看详情并报价
+            </a>
+          </div>
+          
+          <p style="color: #6c757d; font-size: 14px;">
+            请登录系统查看供应商报价并上传最终报价文件。客户将在您完成最终报价后收到通知。
+          </p>
+        </div>
+        
+        <div class="footer">
+          <p>此邮件由询价系统自动发送，请勿回复。</p>
+          <p>如有疑问，请联系系统管理员。</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
+  
   // 生成密码重置邮件模板
   passwordReset: (resetUrl) => `
     <!DOCTYPE html>
@@ -513,8 +672,43 @@ const sendPasswordReset = async (email, resetToken) => {
   }
 };
 
+// 发送供应商报价通知邮件给报价员
+const sendSupplierQuoteNotification = async (quoterEmail, quote) => {
+  const startTime = Date.now();
+  
+  try {
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: `"询价系统" <${process.env.EMAIL_USER}>`,
+      to: quoterEmail,
+      subject: `供应商报价通知 - ${quote.quoteNumber}`,
+      html: EmailTemplates.supplierQuoteNotification(quote)
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    const endTime = Date.now();
+    
+    logger.info('供应商报价通知邮件发送成功', {
+      to: quoterEmail,
+      quoteNumber: quote.quoteNumber,
+      messageId: result.messageId,
+      duration: endTime - startTime
+    });
+    
+    return result;
+  } catch (error) {
+    logger.error('发送供应商报价通知邮件失败', {
+      to: quoterEmail,
+      error: error.message
+    });
+    throw new Error(`供应商报价通知邮件发送失败: ${error.message}`);
+  }
+};
+
 module.exports = {
   sendQuoteNotification,
   sendQuoteResponse,
+  sendSupplierQuoteNotification,
   sendPasswordReset
 };

@@ -110,15 +110,15 @@ router.post('/', auth, authorize('customer'), upload.single('customerFile'), asy
     await quote.populate('customer', 'name email company');
     logger.database('保存询价单', 'quotes', { quoteNumber: quote.quoteNumber }, Date.now() - saveStartTime);
 
-    // 异步发送邮件通知，不阻塞响应
+    // 异步发送邮件通知供应商，不阻塞响应
     setImmediate(async () => {
       try {
-        const quoters = await User.find({ role: 'quoter', isActive: true })
+        const suppliers = await User.find({ role: 'supplier', isActive: true })
           .select('email')
           .lean();
         
-        if (quoters.length === 0) {
-          logger.warn('没有找到活跃的询价员');
+        if (suppliers.length === 0) {
+          logger.warn('没有找到活跃的供应商');
           return;
         }
 
@@ -134,22 +134,22 @@ router.post('/', auth, authorize('customer'), upload.single('customerFile'), asy
           // 注意：不包含 customer 字段，保护客户隐私
         };
 
-        const emailPromises = quoters.map(quoter => 
-          emailService.sendQuoteNotification(quoter.email, sanitizedQuote)
-            .catch(error => logger.error(`发送邮件给 ${quoter.email} 失败`, { error: error.message }))
+        const emailPromises = suppliers.map(supplier => 
+          emailService.sendQuoteNotification(supplier.email, sanitizedQuote)
+            .catch(error => logger.error(`发送邮件给供应商 ${supplier.email} 失败`, { error: error.message }))
         );
         
         const results = await Promise.allSettled(emailPromises);
         const successCount = results.filter(r => r.status === 'fulfilled').length;
         const failCount = results.length - successCount;
         
-        logger.info(`询价单 ${quote.quoteNumber} 邮件通知发送完成`, { 
+        logger.info(`询价单 ${quote.quoteNumber} 供应商邮件通知发送完成`, { 
           successCount, 
           failCount, 
-          totalQuoters: quoters.length 
+          totalSuppliers: suppliers.length 
         });
       } catch (error) {
-        logger.error('批量发送邮件失败', { error: error.message, stack: error.stack });
+        logger.error('批量发送供应商邮件失败', { error: error.message, stack: error.stack });
       }
     });
 
@@ -182,34 +182,49 @@ router.get('/', auth, async (req, res) => {
     let quotes;
     
     if (req.user.role === 'customer') {
-      // Customers can only see their own quotes, without quoter information
+      // Customers can only see their own quotes, without quoter and supplier information
       quotes = await Quote.find({ customer: req.user.userId })
         .populate('customer', 'name email company')
         .sort({ createdAt: -1 });
       
-      // Remove quoter information for customers
+      // Remove quoter and supplier information for customers
       quotes = quotes.map(quote => {
         const quoteObj = quote.toObject();
         delete quoteObj.quoter;
+        delete quoteObj.supplier;
+        // 客户只有在最终报价完成后才能看到报价文件
+        if (quoteObj.status !== 'completed') {
+          delete quoteObj.quoterFile;
+        }
+        delete quoteObj.supplierFile; // 客户永远看不到供应商文件
         return quoteObj;
       });
-    } else if (req.user.role === 'quoter') {
-      // Quoters can see all quotes but without customer information
-      quotes = await Quote.find()
-        .populate('quoter', 'name email company')
+    } else if (req.user.role === 'supplier') {
+      // Suppliers can see all pending quotes but without customer information
+      quotes = await Quote.find({ status: 'pending' })
         .sort({ createdAt: -1 });
       
-      // Remove customer information for quoters
+      // Remove customer information for suppliers
       quotes = quotes.map(quote => {
         const quoteObj = quote.toObject();
         delete quoteObj.customer;
+        delete quoteObj.quoter;
+        delete quoteObj.quoterFile;
         return quoteObj;
       });
+    } else if (req.user.role === 'quoter') {
+      // Quoters can see all quotes with customer information
+      quotes = await Quote.find()
+        .populate('customer', 'name email company')
+        .populate('quoter', 'name email company')
+        .populate('supplier', 'name email company')
+        .sort({ createdAt: -1 });
     } else {
       // Admins can see all quotes with full information
       quotes = await Quote.find()
         .populate('customer', 'name email company')
         .populate('quoter', 'name email company')
+        .populate('supplier', 'name email company')
         .sort({ createdAt: -1 });
     }
 
@@ -225,7 +240,8 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const quote = await Quote.findById(req.params.id)
       .populate('customer', 'name email company')
-      .populate('quoter', 'name email company');
+      .populate('quoter', 'name email company')
+      .populate('supplier', 'name email company');
 
     if (!quote) {
       return res.status(404).json({ message: '询价单不存在' });
@@ -236,17 +252,36 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: '权限不足' });
     }
 
-    // Remove customer information for quoters
-    if (req.user.role === 'quoter') {
+    // Suppliers can only see pending quotes
+    if (req.user.role === 'supplier' && quote.status !== 'pending') {
+      return res.status(403).json({ message: '该询价单已处理，无法查看' });
+    }
+
+    // Remove customer information for suppliers and quoters
+    if (req.user.role === 'supplier') {
       const quoteObj = quote.toObject();
       delete quoteObj.customer;
+      delete quoteObj.quoter;
+      delete quoteObj.quoterFile;
       return res.json(quoteObj);
     }
 
-    // Remove quoter information for customers
+    // Quoters can see customer information
+    if (req.user.role === 'quoter') {
+      const quoteObj = quote.toObject();
+      return res.json(quoteObj);
+    }
+
+    // Remove quoter and supplier information for customers
     if (req.user.role === 'customer') {
       const quoteObj = quote.toObject();
       delete quoteObj.quoter;
+      delete quoteObj.supplier;
+      // 客户只有在最终报价完成后才能看到报价文件
+      if (quoteObj.status !== 'completed') {
+        delete quoteObj.quoterFile;
+      }
+      delete quoteObj.supplierFile; // 客户永远看不到供应商文件
       return res.json(quoteObj);
     }
 
@@ -257,8 +292,8 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// Update quote (customer can update their own, quoter can update assigned)
-router.put('/:id', auth, upload.single('quoterFile'), async (req, res) => {
+// Update quote (customer can update their own, quoter can update assigned, supplier can upload supplier file)
+router.put('/:id', auth, upload.single('file'), async (req, res) => {
   const startTime = Date.now();
   
   try {
@@ -284,8 +319,32 @@ router.put('/:id', auth, upload.single('quoterFile'), async (req, res) => {
       return res.status(403).json({ message: '权限不足' });
     }
 
+    if (req.user.role === 'supplier' && quote.status !== 'pending') {
+      return res.status(403).json({ message: '该询价单已处理，无法上传' });
+    }
+
     const updateData = { ...req.body };
     
+    // 供应商上传文件
+    if (req.file && req.user.role === 'supplier') {
+      updateData.supplierFile = {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        path: req.file.path,
+        size: req.file.size
+      };
+      updateData.status = 'supplier_quoted';
+      updateData.supplier = req.user.userId;
+      
+      logger.info(`供应商报价文件上传完成`, { 
+        quoteId: req.params.id,
+        supplierId: req.user.userId,
+        fileName: req.file.originalname,
+        fileSize: req.file.size
+      });
+    }
+    
+    // 报价员上传最终报价文件
     if (req.file && (req.user.role === 'quoter' || req.user.role === 'admin')) {
       updateData.quoterFile = {
         filename: req.file.filename,
@@ -296,7 +355,7 @@ router.put('/:id', auth, upload.single('quoterFile'), async (req, res) => {
       updateData.status = 'completed';
       updateData.quoter = req.user.userId;
       
-      logger.info(`报价文件上传完成`, { 
+      logger.info(`最终报价文件上传完成`, { 
         quoteId: req.params.id,
         fileName: req.file.originalname,
         fileSize: req.file.size
@@ -315,8 +374,24 @@ router.put('/:id', auth, upload.single('quoterFile'), async (req, res) => {
       }
       // 直接更新字段，确保前端能正确识别
       updateData.quoterFile = null;
-      updateData.status = 'pending';
+      updateData.status = quote.supplierFile ? 'supplier_quoted' : 'pending';
       updateData.quoter = undefined;
+    }
+    
+    // 处理删除供应商文件的情况
+    if (req.body.supplierFile === '' && (req.user.role === 'admin')) {
+      // 删除物理文件
+      if (quote.supplierFile && quote.supplierFile.path) {
+        const fs = require('fs');
+        if (fs.existsSync(quote.supplierFile.path)) {
+          fs.unlinkSync(quote.supplierFile.path);
+          logger.info(`删除供应商文件`, { filePath: quote.supplierFile.path });
+        }
+      }
+      // 直接更新字段，确保前端能正确识别
+      updateData.supplierFile = null;
+      updateData.status = 'pending';
+      updateData.supplier = undefined;
     }
 
     const dbStartTime = Date.now();
@@ -325,22 +400,32 @@ router.put('/:id', auth, upload.single('quoterFile'), async (req, res) => {
       updateData,
       { new: true }
     ).populate('customer', 'name email company')
-     .populate('quoter', 'name email company');
+     .populate('quoter', 'name email company')
+     .populate('supplier', 'name email company');
     
     logger.database('更新询价单', 'quotes', { quoteId: req.params.id }, Date.now() - dbStartTime);
 
-    // 如果报价员上传了报价文件，异步发送邮件通知客户
-    if (req.file && (req.user.role === 'quoter' || req.user.role === 'admin')) {
+    // 如果供应商上传了报价文件，异步发送邮件通知报价员
+    if (req.file && req.user.role === 'supplier') {
       // 不等待邮件发送完成，直接返回响应
       setImmediate(async () => {
         try {
-          await emailService.sendQuoteResponse(updatedQuote.customer.email, updatedQuote);
-          logger.info(`报价邮件发送成功`, { 
+          const quoters = await User.find({ role: 'quoter', isActive: true })
+            .select('email')
+            .lean();
+          
+          const emailPromises = quoters.map(quoter => 
+            emailService.sendSupplierQuoteNotification(quoter.email, updatedQuote)
+              .catch(error => logger.error(`发送供应商报价邮件给 ${quoter.email} 失败`, { error: error.message }))
+          );
+          
+          await Promise.allSettled(emailPromises);
+          logger.info(`供应商报价邮件发送完成`, { 
             quoteId: req.params.id,
-            customerEmail: updatedQuote.customer.email 
+            totalQuoters: quoters.length 
           });
         } catch (emailError) {
-          logger.error('发送报价邮件失败', { 
+          logger.error('发送供应商报价邮件失败', { 
             error: emailError.message,
             quoteId: req.params.id 
           });
@@ -348,10 +433,42 @@ router.put('/:id', auth, upload.single('quoterFile'), async (req, res) => {
       });
     }
 
-    // Remove customer information for quoters
-    if (req.user.role === 'quoter') {
+    // 如果报价员上传了最终报价文件，异步发送邮件通知客户
+    if (req.file && (req.user.role === 'quoter' || req.user.role === 'admin')) {
+      // 不等待邮件发送完成，直接返回响应
+      setImmediate(async () => {
+        try {
+          await emailService.sendQuoteResponse(updatedQuote.customer.email, updatedQuote);
+          logger.info(`最终报价邮件发送成功`, { 
+            quoteId: req.params.id,
+            customerEmail: updatedQuote.customer.email 
+          });
+        } catch (emailError) {
+          logger.error('发送最终报价邮件失败', { 
+            error: emailError.message,
+            quoteId: req.params.id 
+          });
+        }
+      });
+    }
+
+    // Remove customer information for suppliers
+    if (req.user.role === 'supplier') {
       const quoteObj = updatedQuote.toObject();
       delete quoteObj.customer;
+      delete quoteObj.quoter;
+      delete quoteObj.quoterFile;
+      
+      const totalTime = Date.now() - startTime;
+      logger.request(req, totalTime);
+      logger.info(`供应商更新询价单完成`, { quoteId: req.params.id, totalTime: `${totalTime}ms` });
+      
+      return res.json(quoteObj);
+    }
+
+    // Quoters can see customer information
+    if (req.user.role === 'quoter') {
+      const quoteObj = updatedQuote.toObject();
       
       const totalTime = Date.now() - startTime;
       logger.request(req, totalTime);
@@ -360,10 +477,16 @@ router.put('/:id', auth, upload.single('quoterFile'), async (req, res) => {
       return res.json(quoteObj);
     }
 
-    // Remove quoter information for customers
+    // Remove quoter and supplier information for customers
     if (req.user.role === 'customer') {
       const quoteObj = updatedQuote.toObject();
       delete quoteObj.quoter;
+      delete quoteObj.supplier;
+      // 客户只有在最终报价完成后才能看到报价文件
+      if (quoteObj.status !== 'completed') {
+        delete quoteObj.quoterFile;
+      }
+      delete quoteObj.supplierFile; // 客户永远看不到供应商文件
       
       const totalTime = Date.now() - startTime;
       logger.request(req, totalTime);
@@ -426,10 +549,9 @@ router.patch('/:id/reject', auth, async (req, res) => {
     ).populate('customer', 'name email company')
      .populate('quoter', 'name email company');
 
-    // Remove customer information for quoters
+    // Quoters can see customer information
     if (req.user.role === 'quoter') {
       const quoteObj = updatedQuote.toObject();
-      delete quoteObj.customer;
       return res.json(quoteObj);
     }
 
@@ -528,11 +650,34 @@ router.get('/:id/download/:fileType', auth, async (req, res) => {
       return res.status(403).json({ message: '权限不足' });
     }
 
+    // Suppliers can only download customer files for pending quotes
+    if (req.user.role === 'supplier' && quote.status !== 'pending') {
+      return res.status(403).json({ message: '该询价单已处理，无法下载' });
+    }
+
     let filePath;
     if (req.params.fileType === 'customer' && quote.customerFile) {
-      filePath = quote.customerFile.path;
+      // 客户可以下载自己的文件，供应商可以下载待处理询价的客户文件
+      if (req.user.role === 'customer' || (req.user.role === 'supplier' && quote.status === 'pending')) {
+        filePath = quote.customerFile.path;
+      } else {
+        return res.status(403).json({ message: '权限不足' });
+      }
     } else if (req.params.fileType === 'quoter' && quote.quoterFile) {
-      filePath = quote.quoterFile.path;
+      // 只有报价员和管理员可以下载最终报价文件，客户只能在完成后下载
+      if (req.user.role === 'quoter' || req.user.role === 'admin' || 
+          (req.user.role === 'customer' && quote.status === 'completed')) {
+        filePath = quote.quoterFile.path;
+      } else {
+        return res.status(403).json({ message: '权限不足' });
+      }
+    } else if (req.params.fileType === 'supplier' && quote.supplierFile) {
+      // 只有报价员和管理员可以下载供应商文件
+      if (req.user.role === 'quoter' || req.user.role === 'admin') {
+        filePath = quote.supplierFile.path;
+      } else {
+        return res.status(403).json({ message: '权限不足' });
+      }
     } else {
       return res.status(404).json({ message: '文件不存在' });
     }
