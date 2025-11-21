@@ -13,8 +13,11 @@ import { QuoteCreateComponent } from './components/quote-create/quote-create.com
 import { QuoteDetailComponent } from './components/quote-detail/quote-detail.component';
 import { UserListComponent } from './components/user-list/user-list.component';
 import { UserProfileComponent } from './components/user-profile/user-profile.component';
+import { QuoteRedirectComponent } from './components/quote-redirect/quote-redirect.component';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 import { NavbarComponent } from './components/navbar/navbar.component';
+
+
 
 @NgModule({
   declarations: [
@@ -27,7 +30,10 @@ import { NavbarComponent } from './components/navbar/navbar.component';
     QuoteDetailComponent,
     UserListComponent,
     UserProfileComponent,
-    NavbarComponent
+    QuoteRedirectComponent,
+    NavbarComponent,
+
+
   ],
   imports: [
     BrowserModule,

@@ -13,6 +13,24 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
   }
 });
 
+// Get suppliers (quoter or admin only)
+router.get('/suppliers', auth, async (req, res) => {
+  try {
+    // 验证权限：只有报价员和管理员可以获取供应商列表
+    if (!['quoter', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: '权限不足' });
+    }
+
+    const suppliers = await User.find({ role: 'supplier', isActive: true })
+      .select('-password')
+      .sort({ name: 1 });
+    
+    res.json(suppliers);
+  } catch (error) {
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+});
+
 // Get user by ID
 router.get('/:id', auth, async (req, res) => {
   try {
@@ -37,7 +55,7 @@ router.patch('/:id/role', auth, authorize('admin'), async (req, res) => {
   try {
     const { role } = req.body;
     
-    if (!['customer', 'quoter', 'admin'].includes(role)) {
+    if (!['customer', 'quoter', 'supplier', 'admin'].includes(role)) {
       return res.status(400).json({ message: '无效的角色' });
     }
 

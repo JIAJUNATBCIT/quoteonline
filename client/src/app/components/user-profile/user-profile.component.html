@@ -27,10 +27,12 @@
                 <div class="mb-3">
                   <label for="email" class="form-label">邮箱</label>
                   <input type="email" 
-                         class="form-control" 
+                         class="form-control bg-light" 
                          id="email"
                          formControlName="email"
+                         readonly
                          [class.is-invalid]="profileForm.get('email')?.invalid && profileForm.get('email')?.touched">
+                  <div class="form-text text-muted">邮箱地址注册后不可修改</div>
                   <div class="invalid-feedback" *ngIf="profileForm.get('email')?.errors?.['required']">
                     邮箱是必填项
                   </div>

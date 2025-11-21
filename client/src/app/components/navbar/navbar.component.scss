@@ -210,6 +210,34 @@
   }
 }
 
+// Role badge styles
+.role-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  
+  &.role-customer {
+    background-color: #28a745;
+    color: white;
+  }
+  
+  &.role-quoter {
+    background-color: #17a2b8;
+    color: white;
+  }
+  
+  &.role-admin {
+    background-color: #dc3545;
+    color: white;
+  }
+  
+  &.role-supplier {
+    background-color: #fd7e14;
+    color: white;
+  }
+}
+
 @media (max-width: 576px) {
   .navbar {
     padding: 0.5rem;

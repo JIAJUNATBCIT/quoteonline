@@ -8,6 +8,7 @@ import { QuoteCreateComponent } from './components/quote-create/quote-create.com
 import { QuoteDetailComponent } from './components/quote-detail/quote-detail.component';
 import { UserListComponent } from './components/user-list/user-list.component';
 import { UserProfileComponent } from './components/user-profile/user-profile.component';
+import { QuoteRedirectComponent } from './components/quote-redirect/quote-redirect.component';
 import { AuthGuard } from './guards/auth.guard';
 import { RoleGuard } from './guards/role.guard';
 
@@ -16,11 +17,14 @@ const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { 
+    path: 'quote-view/:id', 
+    component: QuoteRedirectComponent
+  },
+  { 
     path: 'dashboard', 
     component: DashboardComponent,
     canActivate: [AuthGuard]
   },
-
   { 
     path: 'quotes/create', 
     component: QuoteCreateComponent,

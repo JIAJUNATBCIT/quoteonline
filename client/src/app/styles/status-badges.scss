@@ -1,0 +1,54 @@
+// 通用状态标签样式
+.status-badge {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  text-align: center;
+  white-space: nowrap;
+  
+  // 待处理 - 黄色
+  &.status-pending {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    border: none !important;
+  }
+  
+  // 供应商已报价 - 蓝绿色
+  &.status-supplier_quoted,
+  &.status-supplier-quoted {
+    background-color: #17a2b8 !important;
+    color: white !important;
+    border: none !important;
+  }
+  
+  // 处理中 - 蓝色
+  &.status-in_progress,
+  &.status-in-progress {
+    background-color: #007bff !important;
+    color: white !important;
+    border: none !important;
+  }
+  
+  // 已报价 - 绿色
+  &.status-quoted {
+    background-color: #28a745 !important;
+    color: white !important;
+    border: none !important;
+  }
+  
+  // 已取消 - 灰色
+  &.status-cancelled {
+    background-color: #6c757d !important;
+    color: white !important;
+    border: none !important;
+  }
+  
+  // 不报价 - 红色
+  &.status-rejected {
+    background-color: #dc3545 !important;
+    color: white !important;
+    border: none !important;
+  }
+}

@@ -7,19 +7,7 @@
         </div>
         <div class="card-body">
           <form [formGroup]="quoteForm" (ngSubmit)="onSubmit()">
-            <div class="mb-3">
-              <label for="title" class="form-label">询价标题 *</label>
-              <input 
-                type="text" 
-                class="form-control" 
-                id="title"
-                formControlName="title"
-                placeholder="请输入询价单标题"
-                [class.is-invalid]="quoteForm.get('title')?.invalid && quoteForm.get('title')?.touched">
-              <div class="invalid-feedback" *ngIf="quoteForm.get('title')?.errors?.['required']">
-                请输入询价标题
-              </div>
-            </div>
+            <!-- 标题将自动从文件名生成，无需用户输入 -->
 
             <div class="mb-3">
               <label for="description" class="form-label">询价描述</label>
@@ -39,7 +27,7 @@
                 id="customerFile"
                 accept=".xlsx,.xls"
                 (change)="onFileSelected($event)"
-                [class.is-invalid]="!selectedFile && quoteForm.get('title')?.touched">
+                [class.is-invalid]="!selectedFile">
               <div class="form-text">
                 请上传Excel文件 (.xlsx 或 .xls)，文件大小不超过10MB
               </div>

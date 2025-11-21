@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
 import { QuoteService } from '../../services/quote.service';
 
@@ -20,7 +20,6 @@ export class QuoteCreateComponent {
     private quoteService: QuoteService
   ) {
     this.quoteForm = this.formBuilder.group({
-      title: ['', Validators.required],
       description: [''],
       customerMessage: ['']
     });
@@ -49,16 +48,20 @@ export class QuoteCreateComponent {
   }
 
   onSubmit() {
-    if (this.quoteForm.invalid || !this.selectedFile) {
-      this.error = !this.selectedFile ? '请选择Excel文件' : '请填写必填字段';
+    if (!this.selectedFile) {
+      this.error = '请选择Excel文件';
       return;
     }
 
     this.loading = true;
     this.error = '';
 
+    // 从文件名生成标题（去掉扩展名）
+    const fileName = this.selectedFile.name;
+    const title = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+
     const formData = new FormData();
-    formData.append('title', this.quoteForm.get('title')?.value);
+    formData.append('title', title);
     formData.append('description', this.quoteForm.get('description')?.value || '');
     formData.append('customerMessage', this.quoteForm.get('customerMessage')?.value || '');
     formData.append('customerFile', this.selectedFile);

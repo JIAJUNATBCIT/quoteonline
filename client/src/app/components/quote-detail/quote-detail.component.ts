@@ -1,8 +1,10 @@
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Component, OnInit, NgZone } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { QuoteService, Quote } from '../../services/quote.service';
 import { AuthService } from '../../services/auth.service';
 import { UserService } from '../../services/user.service';
+import { PermissionService } from '../../services/permission.service';
+import { getStatusDisplayName } from '../../utils/status.utils';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -15,16 +17,21 @@ export class QuoteDetailComponent implements OnInit {
   loading = true;
   error = '';
   quoters: any[] = [];
+  suppliers: any[] = [];
   editMode = false;
   quoteForm: any = {};
   uploading = false;
   uploadProgress = 0;
+  assigning = false;
+  selectedSupplierId = '';
 
   constructor(
     private route: ActivatedRoute,
     private quoteService: QuoteService,
     public authService: AuthService,
-    private userService: UserService
+    private userService: UserService,
+    private permissionService: PermissionService,
+    private ngZone: NgZone
   ) { }
 
   ngOnInit() {
@@ -33,6 +40,9 @@ export class QuoteDetailComponent implements OnInit {
       this.loadQuote(quoteId);
       if (this.authService.hasRole('admin')) {
         this.loadQuoters();
+      }
+      if (this.authService.hasRole('quoter') || this.authService.hasRole('admin')) {
+        this.loadSuppliers();
       }
     }
   }
@@ -63,17 +73,18 @@ export class QuoteDetailComponent implements OnInit {
     });
   }
 
-  getStatusDisplayName(status: string): string {
-    const statusNames: { [key: string]: string } = {
-      'pending': '待处理',
-      'supplier_quoted': '供应商已报价',
-      'in_progress': '处理中',
-      'completed': '已完成',
-      'cancelled': '已取消',
-      'rejected': '不报价'
-    };
-    return statusNames[status] || status;
+  loadSuppliers() {
+    this.userService.getSuppliers().subscribe({
+      next: (suppliers) => {
+        this.suppliers = suppliers;
+      },
+      error: (error) => {
+        console.error('加载供应商列表失败:', error);
+      }
+    });
   }
+
+
 
   downloadFile(fileType: string) {
     if (!this.quote) return;
@@ -86,7 +97,7 @@ export class QuoteDetailComponent implements OnInit {
     
     if (user.role === 'customer') {
       // 客户：未报价时下载原文件，已报价时下载报价文件
-      actualFileType = this.quote.status === 'completed' ? 'quoter' : 'customer';
+      actualFileType = this.quote.status === 'quoted' ? 'quoter' : 'customer';
     }
     
     this.quoteService.downloadFile(this.quote._id, actualFileType).subscribe({
@@ -94,7 +105,22 @@ export class QuoteDetailComponent implements OnInit {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${this.quote?.title}_${actualFileType}.xlsx`;
+        
+        // 根据文件类型设置下载文件名
+        let suffix = '';
+        switch (actualFileType) {
+          case 'customer':
+            suffix = '_customer';
+            break;
+          case 'supplier':
+            suffix = '_supplier';
+            break;
+          case 'quoter':
+            suffix = '_quoted';
+            break;
+        }
+        
+        a.download = `${this.quote?.quoteNumber}${suffix}.xlsx`;
         a.click();
         window.URL.revokeObjectURL(url);
       },
@@ -131,7 +157,8 @@ export class QuoteDetailComponent implements OnInit {
     }
   }
 
-  uploadSupplierFile(file: File) {
+  // 通用的文件上传方法
+  private uploadFile(file: File, successMessage: string, errorMessage: string) {
     if (!this.quote) return;
     
     this.uploading = true;
@@ -158,19 +185,24 @@ export class QuoteDetailComponent implements OnInit {
       if (xhr.status === 200) {
         try {
           const updatedQuote = JSON.parse(xhr.responseText);
-          this.quote = updatedQuote;
-          alert('供应商报价文件上传成功');
+          console.log('上传成功，更新后的询价单:', updatedQuote);
+          
+          // 使用NgZone确保变更检测
+          this.ngZone.run(() => {
+            this.quote = updatedQuote;
+          });
+          alert(successMessage);
         } catch (error) {
           console.error('解析响应失败:', error);
           alert('上传响应解析失败');
         }
       } else {
         console.error('上传失败:', xhr.status, xhr.responseText);
-        alert('上传供应商报价文件失败');
+        alert(errorMessage);
       }
     });
     
-    // 监听错误
+    // 监听错误和超时
     xhr.addEventListener('error', () => {
       this.uploading = false;
       this.uploadProgress = 0;
@@ -178,7 +210,6 @@ export class QuoteDetailComponent implements OnInit {
       alert('网络错误，上传失败');
     });
     
-    // 监听超时
     xhr.addEventListener('timeout', () => {
       this.uploading = false;
       this.uploadProgress = 0;
@@ -198,95 +229,86 @@ export class QuoteDetailComponent implements OnInit {
     
     // 发送请求
     xhr.send(formData);
+  }
+
+  uploadSupplierFile(file: File) {
+    this.uploadFile(file, '供应商报价文件上传成功', '上传供应商报价文件失败');
   }
 
   uploadQuoterFile(file: File) {
-    if (!this.quote) return;
-    
-    this.uploading = true;
-    this.uploadProgress = 0;
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    // 创建带进度的HTTP请求
-    const xhr = new XMLHttpRequest();
-    
-    // 监听上传进度
-    xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable) {
-        this.uploadProgress = Math.round((event.loaded / event.total) * 100);
-      }
-    });
-    
-    // 监听响应
-    xhr.addEventListener('load', () => {
-      this.uploading = false;
-      this.uploadProgress = 0;
-      
-      if (xhr.status === 200) {
-        try {
-          const updatedQuote = JSON.parse(xhr.responseText);
-          this.quote = updatedQuote;
-          alert('最终报价文件上传成功');
-        } catch (error) {
-          console.error('解析响应失败:', error);
-          alert('上传响应解析失败');
-        }
-      } else {
-        console.error('上传失败:', xhr.status, xhr.responseText);
-        alert('上传最终报价文件失败');
-      }
-    });
-    
-    // 监听错误
-    xhr.addEventListener('error', () => {
-      this.uploading = false;
-      this.uploadProgress = 0;
-      console.error('网络错误');
-      alert('网络错误，上传失败');
-    });
-    
-    // 监听超时
-    xhr.addEventListener('timeout', () => {
-      this.uploading = false;
-      this.uploadProgress = 0;
-      console.error('上传超时');
-      alert('上传超时，请重试');
-    });
-    
-    // 配置请求
-    xhr.timeout = 60000; // 60秒超时
-    xhr.open('PUT', `${environment.apiUrl}/quotes/${this.quote._id}`);
-    
-    // 添加认证头
-    const token = localStorage.getItem('token');
-    if (token) {
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    }
-    
-    // 发送请求
-    xhr.send(formData);
+    this.uploadFile(file, '最终报价文件上传成功', '上传最终报价文件失败');
   }
 
-  deleteQuoterFile() {
-    if (!this.quote || !this.quote.quoterFile) return;
+  deleteFile(fileType: string) {
+    if (!this.quote) return;
     
-    if (confirm('确定要删除报价文件吗？')) {
+    const user = this.authService.getCurrentUser();
+    if (!user) return;
+    
+    // 检查权限
+    if (!this.permissionService.canDeleteFile(this.quote, fileType, user)) {
+      alert('您没有权限删除此文件');
+      return;
+    }
+    
+    // 检查文件是否存在
+    const fileExists = this.checkFileExists(fileType);
+    if (!fileExists) {
+      alert('文件不存在');
+      return;
+    }
+    
+    // 确认删除
+    const fileTypeName = this.getFileTypeName(fileType);
+    if (confirm(`确定要删除${fileTypeName}吗？`)) {
       const formData = new FormData();
-      formData.append('quoterFile', ''); // 空值表示删除
+      formData.append(fileType + 'File', ''); // 空值表示删除
       
       this.quoteService.updateQuote(this.quote._id, formData).subscribe({
         next: (quote) => {
           this.quote = quote;
-          alert('报价文件删除成功');
+          alert(`${fileTypeName}删除成功`);
         },
         error: (error) => {
-          console.error('删除报价文件失败:', error);
-          alert('删除报价文件失败');
+          console.error('删除文件失败:', error);
+          const errorMessage = error.error?.message || error.message || '删除文件失败';
+          alert(errorMessage);
         }
       });
     }
+  }
+  
+  private checkFileExists(fileType: string): boolean {
+    if (!this.quote) return false;
+    
+    switch (fileType) {
+      case 'customer':
+        return !!this.quote.customerFile;
+      case 'supplier':
+        return !!this.quote.supplierFile;
+      case 'quoter':
+        return !!this.quote.quoterFile;
+      default:
+        return false;
+    }
+  }
+  
+  private getFileTypeName(fileType: string): string {
+    switch (fileType) {
+      case 'customer':
+        return '询价文件';
+      case 'supplier':
+        return '供应商报价文件';
+      case 'quoter':
+        return '最终报价文件';
+      default:
+        return '文件';
+    }
+  }
+
+  // 保留原有方法以兼容现有代码
+  deleteQuoterFile() {
+    this.deleteFile('quoter');
   }
 
   assignToQuoter(quoterId: string) {
@@ -300,6 +322,25 @@ export class QuoteDetailComponent implements OnInit {
       error: (error) => {
         console.error('分配失败:', error);
         alert('分配失败');
+      }
+    });
+  }
+
+  assignSupplier() {
+    if (!this.quote || !this.selectedSupplierId) return;
+    
+    this.assigning = true;
+    this.quoteService.assignSupplier(this.quote._id, this.selectedSupplierId).subscribe({
+      next: (quote) => {
+        this.quote = quote;
+        this.assigning = false;
+        this.selectedSupplierId = '';
+        alert('供应商分配成功');
+      },
+      error: (error) => {
+        console.error('分配供应商失败:', error);
+        this.assigning = false;
+        alert('分配供应商失败');
       }
     });
   }
@@ -335,37 +376,26 @@ export class QuoteDetailComponent implements OnInit {
   }
 
   canEdit(): boolean {
-    if (!this.quote) return false;
     const user = this.authService.getCurrentUser();
-    if (!user) return false;
-    
-    if (user.role === 'customer') {
-      return this.quote.customer._id === user.id;
-    }
-    
-    if (user.role === 'supplier') {
-      return this.quote.status === 'pending';
-    }
-    
-    if (user.role === 'quoter') {
-      return this.quote.status === 'pending' || this.quote.status === 'supplier_quoted' || this.quote.status === 'in_progress';
-    }
-    
-    return true; // admin can edit all
+    if (!user || !this.quote) return false;
+    return this.permissionService.canEditQuote(this.quote, user);
   }
 
   canReject(): boolean {
-    if (!this.quote) return false;
     const user = this.authService.getCurrentUser();
-    if (!user) return false;
-    
-    // 客户和供应商不能拒绝报价
-    if (user.role === 'customer' || user.role === 'supplier') {
-      return false;
-    }
-    
-    // 只有待处理、供应商已报价或处理中的询价单可以被拒绝
-    return this.quote.status === 'pending' || this.quote.status === 'supplier_quoted' || this.quote.status === 'in_progress';
+    if (!user || !this.quote) return false;
+    return this.permissionService.canRejectQuote(this.quote, user);
+  }
+
+  canDeleteFile(fileType: string): boolean {
+    const user = this.authService.getCurrentUser();
+    if (!user || !this.quote) return false;
+    return this.permissionService.canDeleteFile(this.quote, fileType, user);
+  }
+
+  // Expose status utility to template
+  getStatusDisplayName(status: string): string {
+    return getStatusDisplayName(status);
   }
 
   rejectQuote() {

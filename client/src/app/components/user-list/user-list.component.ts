@@ -35,7 +35,8 @@ export class UserListComponent implements OnInit {
     const roleNames: { [key: string]: string } = {
       'customer': '客户',
       'quoter': '报价员',
-      'admin': '管理员'
+      'admin': '管理员',
+      'supplier': '供应商'
     };
     return roleNames[role] || role;
   }
