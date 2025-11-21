@@ -7,7 +7,7 @@ export interface User {
   _id: string;
   email: string;
   name: string;
-  role: 'customer' | 'quoter' | 'admin';
+  role: 'customer' | 'quoter' | 'admin' | 'supplier';
   company?: string;
   phone?: string;
   isActive: boolean;
@@ -31,6 +31,10 @@ export class UserService {
 
   updateUserRole(id: string, role: string): Observable<User> {
     return this.http.patch<User>(`${environment.apiUrl}/users/${id}/role`, { role });
+  }
+
+  getSuppliers(): Observable<User[]> {
+    return this.http.get<User[]>(`${environment.apiUrl}/users/suppliers`);
   }
 
   updateUserProfile(id: string, profileData: any): Observable<User> {

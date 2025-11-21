@@ -44,7 +44,26 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: '服务器错误', error: error.message });
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        message: '请填写所有必填字段', 
+        errors: errors 
+      });
+    }
+    
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({ 
+        message: `${field === 'email' ? '邮箱' : field}已存在` 
+      });
+    }
+    
+    // Handle other errors
+    console.error('Registration error:', error);
+    res.status(500).json({ message: '服务器错误', error: process.env.NODE_ENV === 'development' ? error.message : '请稍后重试' });
   }
 });
 
@@ -83,7 +102,26 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: '服务器错误', error: error.message });
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        message: '请填写所有必填字段', 
+        errors: errors 
+      });
+    }
+    
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({ 
+        message: `${field === 'email' ? '邮箱' : field}已存在` 
+      });
+    }
+    
+    // Handle other errors
+    console.error('Registration error:', error);
+    res.status(500).json({ message: '服务器错误', error: process.env.NODE_ENV === 'development' ? error.message : '请稍后重试' });
   }
 });
 
@@ -93,7 +131,26 @@ router.get('/me', auth, async (req, res) => {
     const user = await User.findById(req.user.userId).select('-password');
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: '服务器错误', error: error.message });
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        message: '请填写所有必填字段', 
+        errors: errors 
+      });
+    }
+    
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({ 
+        message: `${field === 'email' ? '邮箱' : field}已存在` 
+      });
+    }
+    
+    // Handle other errors
+    console.error('Registration error:', error);
+    res.status(500).json({ message: '服务器错误', error: process.env.NODE_ENV === 'development' ? error.message : '请稍后重试' });
   }
 });
 
@@ -121,7 +178,26 @@ router.post('/forgot-password', async (req, res) => {
       resetToken 
     });
   } catch (error) {
-    res.status(500).json({ message: '服务器错误', error: error.message });
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        message: '请填写所有必填字段', 
+        errors: errors 
+      });
+    }
+    
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({ 
+        message: `${field === 'email' ? '邮箱' : field}已存在` 
+      });
+    }
+    
+    // Handle other errors
+    console.error('Registration error:', error);
+    res.status(500).json({ message: '服务器错误', error: process.env.NODE_ENV === 'development' ? error.message : '请稍后重试' });
   }
 });
 

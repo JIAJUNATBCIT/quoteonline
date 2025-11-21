@@ -3,19 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  company?: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
+import { User, AuthResponse } from '../utils/user.types';
 
 @Injectable({
   providedIn: 'root'

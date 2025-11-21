@@ -36,7 +36,8 @@
                 <span class="badge" [ngClass]="{
                   'bg-primary': user.role === 'customer',
                   'bg-success': user.role === 'quoter',
-                  'bg-danger': user.role === 'admin'
+                  'bg-danger': user.role === 'admin',
+                  'bg-warning': user.role === 'supplier'
                 }">
                   {{ getRoleDisplayName(user.role) }}
                 </span>
@@ -77,6 +78,13 @@
                            (click)="updateUserRole(user._id, 'admin')"
                            [class.active]="user.role === 'admin'">
                           管理员
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item" 
+                           (click)="updateUserRole(user._id, 'supplier')"
+                           [class.active]="user.role === 'supplier'">
+                          供应商
                         </a>
                       </li>
                     </ul>

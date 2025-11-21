@@ -46,7 +46,7 @@ const QuoteSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'supplier_quoted', 'in_progress', 'completed', 'cancelled', 'rejected'],
+    enum: ['pending', 'supplier_quoted', 'in_progress', 'quoted', 'cancelled', 'rejected'],
     default: 'pending'
   },
   customerMessage: {
@@ -73,7 +73,6 @@ const QuoteSchema = new mongoose.Schema({
 });
 
 // 创建索引以提高查询性能
-QuoteSchema.index({ quoteNumber: 1 }, { unique: true });
 QuoteSchema.index({ customer: 1 });
 QuoteSchema.index({ quoter: 1 });
 QuoteSchema.index({ supplier: 1 });

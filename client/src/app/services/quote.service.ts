@@ -21,7 +21,7 @@ export interface Quote {
   customerFile?: QuoteFile;
   quoterFile?: QuoteFile;
   supplierFile?: QuoteFile;
-  status: 'pending' | 'supplier_quoted' | 'in_progress' | 'completed' | 'cancelled' | 'rejected';
+  status: 'pending' | 'supplier_quoted' | 'in_progress' | 'quoted' | 'cancelled' | 'rejected';
   customerMessage?: string;
   quoterMessage?: string;
   rejectReason?: string;
@@ -46,6 +46,10 @@ export class QuoteService {
     return this.http.get<Quote>(`${environment.apiUrl}/quotes/${id}`);
   }
 
+  getPublicQuote(id: string): Observable<any> {
+    return this.http.get<any>(`${environment.apiUrl}/quotes/public/${id}`);
+  }
+
   createQuote(quoteData: FormData): Observable<Quote> {
     return this.http.post<Quote>(`${environment.apiUrl}/quotes`, quoteData);
   }
@@ -56,6 +60,10 @@ export class QuoteService {
 
   assignQuote(id: string, quoterId: string): Observable<Quote> {
     return this.http.patch<Quote>(`${environment.apiUrl}/quotes/${id}/assign`, { quoterId });
+  }
+
+  assignSupplier(id: string, supplierId: string): Observable<Quote> {
+    return this.http.patch<Quote>(`${environment.apiUrl}/quotes/${id}/assign-supplier`, { supplierId });
   }
 
   rejectQuote(id: string, rejectReason: string): Observable<Quote> {

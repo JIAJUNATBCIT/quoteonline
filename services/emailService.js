@@ -1,4 +1,6 @@
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
 const logger = require('../utils/logger');
 
 // HTML转义函数，防止XSS攻击
@@ -39,7 +41,7 @@ const EmailTemplates = {
           overflow: hidden;
         }
         .header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background-color: #667eea;
           color: white;
           padding: 30px 20px;
           text-align: center;
@@ -90,15 +92,19 @@ const EmailTemplates = {
         .action-button {
           display: inline-block;
           background-color: #007bff;
-          color: white;
+          color: white !important;
           padding: 12px 30px;
           text-decoration: none;
           border-radius: 5px;
           margin: 20px 0;
           font-weight: 500;
+          font-size: 16px;
+          text-align: center;
+          border: 2px solid #007bff;
         }
         .action-button:hover {
           background-color: #0056b3;
+          border-color: #0056b3;
         }
       </style>
     </head>
@@ -133,7 +139,7 @@ const EmailTemplates = {
           </div>
           
           <p style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.FRONTEND_URL || '#'}/quotes/${quote._id}" class="action-button">
+            <a href="${process.env.FRONTEND_URL || '#'}/quote-view/${quote._id}" class="action-button">
               查看询价详情
             </a>
           </p>
@@ -173,7 +179,7 @@ const EmailTemplates = {
           overflow: hidden;
         }
         .header {
-          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          background-color: #28a745;
           color: white;
           padding: 30px 20px;
           text-align: center;
@@ -229,15 +235,19 @@ const EmailTemplates = {
         .action-button {
           display: inline-block;
           background-color: #28a745;
-          color: white;
+          color: white !important;
           padding: 12px 30px;
           text-decoration: none;
           border-radius: 5px;
           margin: 20px 0;
           font-weight: 500;
+          font-size: 16px;
+          text-align: center;
+          border: 2px solid #28a745;
         }
         .action-button:hover {
           background-color: #218838;
+          border-color: #218838;
         }
       </style>
     </head>
@@ -260,7 +270,7 @@ const EmailTemplates = {
             </div>
             <div class="info-row">
               <span class="info-label">报价:</span>
-              <span class="info-value price">${quote.price ? `${quote.price} ${quote.currency}` : '待定'}</span>
+              <span class="info-value price">${quote.price ? `${quote.price} ${quote.currency}` : '已报价'}</span>
             </div>
             <div class="info-row">
               <span class="info-label">报价员留言:</span>
@@ -273,8 +283,147 @@ const EmailTemplates = {
           </div>
           
           <p style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.FRONTEND_URL || '#'}/quotes/${quote._id}" class="action-button">
+            <a href="${process.env.FRONTEND_URL || '#'}/quote-view/${quote._id}" class="action-button">
               查看报价详情
+            </a>
+          </p>
+        </div>
+        
+        <div class="footer">
+          <p>此邮件由询价系统自动发送，请勿回复。</p>
+          <p>如有疑问，请联系系统管理员。</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
+
+  // 生成报价员分配供应商邮件模板
+  quoterAssignmentNotification: (quote) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>新的询价单 - 需要分配供应商</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #f4f4f4;
+        }
+        .container {
+          background-color: #ffffff;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          overflow: hidden;
+        }
+        .header {
+          background-color: #667eea;
+          color: white;
+          padding: 30px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 300;
+        }
+        .content {
+          padding: 30px 20px;
+        }
+        .info-box {
+          background-color: #f8f9fa;
+          border: 1px solid #e9ecef;
+          border-radius: 6px;
+          padding: 20px;
+          margin: 20px 0;
+        }
+        .info-row {
+          display: flex;
+          margin: 10px 0;
+        }
+        .info-label {
+          font-weight: bold;
+          color: #495057;
+          min-width: 120px;
+        }
+        .info-value {
+          color: #212529;
+          flex: 1;
+          word-break: break-word;
+        }
+        .quote-number {
+          color: #007bff;
+          font-weight: bold;
+          font-size: 18px;
+        }
+        .footer {
+          background-color: #f8f9fa;
+          padding: 20px;
+          text-align: center;
+          border-top: 1px solid #e9ecef;
+          color: #6c757d;
+          font-size: 14px;
+        }
+        .action-button {
+          display: inline-block;
+          background-color: #007bff;
+          color: white !important;
+          padding: 12px 30px;
+          text-decoration: none;
+          border-radius: 5px;
+          margin: 20px 0;
+          font-weight: 500;
+          font-size: 16px;
+          text-align: center;
+          border: 2px solid #007bff;
+        }
+        .action-button:hover {
+          background-color: #0056b3;
+          border-color: #0056b3;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📋 新的询价单需要处理</h1>
+        </div>
+        
+        <div class="content">
+          <p>有新的询价单需要您分配供应商进行报价，请及时处理。</p>
+          
+          <div class="info-box">
+            <div class="info-row">
+              <span class="info-label">询价号:</span>
+              <span class="info-value quote-number">${escapeHtml(quote.quoteNumber)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">标题:</span>
+              <span class="info-value">${escapeHtml(quote.title)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">描述:</span>
+              <span class="info-value">${escapeHtml(quote.description) || '无'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">客户留言:</span>
+              <span class="info-value">${escapeHtml(quote.customerMessage) || '无'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">创建时间:</span>
+              <span class="info-value">${quote.createdAt.toLocaleString('zh-CN')}</span>
+            </div>
+          </div>
+          
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL || '#'}/quote-view/${quote._id}" class="action-button">
+              分配供应商
             </a>
           </p>
         </div>
@@ -313,7 +462,7 @@ const EmailTemplates = {
           overflow: hidden;
         }
         .header {
-          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          background-color: #28a745;
           color: white;
           padding: 30px 20px;
           text-align: center;
@@ -349,17 +498,19 @@ const EmailTemplates = {
         .btn {
           display: inline-block;
           padding: 12px 24px;
-          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-          color: white;
+          background-color: #28a745;
+          color: white !important;
           text-decoration: none;
           border-radius: 6px;
           font-weight: 500;
+          font-size: 16px;
+          text-align: center;
           margin: 15px 5px;
-          transition: all 0.3s ease;
+          border: 2px solid #28a745;
         }
         .btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+          background-color: #218838;
+          border-color: #218838;
         }
         .footer {
           background-color: #f8f9fa;
@@ -428,8 +579,8 @@ const EmailTemplates = {
           ` : ''}
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:4200'}/quotes/${quote._id}" class="btn">
-              📝 查看详情并报价
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:4200'}/quote-view/${quote._id}" class="btn">
+              📝 查看详情
             </a>
           </div>
           
@@ -472,7 +623,7 @@ const EmailTemplates = {
           overflow: hidden;
         }
         .header {
-          background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+          background-color: #dc3545;
           color: white;
           padding: 30px 20px;
           text-align: center;
@@ -589,11 +740,35 @@ const sendQuoteNotification = async (quoterEmail, quote) => {
       to: quoterEmail,
       subject: `新的询价请求 - ${quote.quoteNumber} - ${quote.title}`,
       html: EmailTemplates.quoteNotification(quote),
-      attachments: quote.customerFile && quote.customerFile.path ? [{
-        filename: quote.customerFile.originalName,
-        path: quote.customerFile.path,
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      }] : []
+      attachments: quote.customerFile && quote.customerFile.path ? (() => {
+        try {
+          // 尝试读取文件内容
+          const fileContent = fs.readFileSync(quote.customerFile.path);
+          
+          // 使用数据库中已修复的文件名，不再进行额外的编码修复
+          let originalName = quote.customerFile.originalName;
+          logger.info('使用客户文件附件', { 
+            originalName: originalName,
+            fileSize: fileContent.length
+          });
+          
+          logger.info('发送客户文件附件', { 
+            originalName: originalName,
+            fileSize: fileContent.length
+          });
+          
+          return [{
+            filename: originalName,
+            content: fileContent
+          }];
+        } catch (error) {
+          logger.error('读取客户文件失败', { 
+            path: quote.customerFile.path, 
+            error: error.message 
+          });
+          return [];
+        }
+      })() : []
     };
 
     const result = await transporter.sendMail(mailOptions);
@@ -619,11 +794,35 @@ const sendQuoteResponse = async (customerEmail, quote) => {
       to: customerEmail,
       subject: `报价回复 - ${quote.quoteNumber} - ${quote.title}`,
       html: EmailTemplates.quoteResponse(quote),
-      attachments: quote.quoterFile && quote.quoterFile.path ? [{
-        filename: quote.quoterFile.originalName,
-        path: quote.quoterFile.path,
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      }] : []
+      attachments: quote.quoterFile && quote.quoterFile.path ? (() => {
+        try {
+          // 尝试读取文件内容
+          const fileContent = fs.readFileSync(quote.quoterFile.path);
+          
+          // 使用数据库中已修复的文件名，不再进行额外的编码修复
+          let originalName = quote.quoterFile.originalName;
+          logger.info('使用报价员文件附件', { 
+            originalName: originalName,
+            fileSize: fileContent.length
+          });
+          
+          logger.info('发送报价员文件附件', { 
+            originalName: originalName,
+            fileSize: fileContent.length
+          });
+          
+          return [{
+            filename: originalName,
+            content: fileContent
+          }];
+        } catch (error) {
+          logger.error('读取报价员文件失败', { 
+            path: quote.quoterFile.path, 
+            error: error.message 
+          });
+          return [];
+        }
+      })() : []
     };
 
     const result = await transporter.sendMail(mailOptions);
@@ -672,12 +871,49 @@ const sendPasswordReset = async (email, resetToken) => {
   }
 };
 
+// Send quote assignment notification to quoters
+const sendQuoterAssignmentNotification = async (quoterEmail, quote) => {
+  try {
+    const startTime = Date.now();
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: quoterEmail,
+      subject: `新的询价单需要分配供应商 - ${quote.quoteNumber} - ${quote.title}`,
+      html: EmailTemplates.quoterAssignmentNotification(quote)
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    
+    logger.email('发送', quoterEmail, quote.quoteNumber, true, null);
+    
+    return result;
+  } catch (error) {
+    logger.email('发送', quoterEmail, quote.quoteNumber, false, error);
+    throw new Error(`报价员分配通知邮件发送失败: ${error.message}`);
+  }
+};
+
 // 发送供应商报价通知邮件给报价员
 const sendSupplierQuoteNotification = async (quoterEmail, quote) => {
   const startTime = Date.now();
   
   try {
-    const transporter = createTransporter();
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      secure: true, // Use SSL for port 465
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false   // 关键：禁止验证证书
+      },
+      connectionTimeout: 30000,     // 30秒连接超时
+      greetingTimeout: 10000,       // 10秒握手超时
+      socketTimeout: 60000          // 60秒socket超时
+    });
     
     const mailOptions = {
       from: `"询价系统" <${process.env.EMAIL_USER}>`,
@@ -710,5 +946,6 @@ module.exports = {
   sendQuoteNotification,
   sendQuoteResponse,
   sendSupplierQuoteNotification,
-  sendPasswordReset
+  sendPasswordReset,
+  sendQuoterAssignmentNotification
 };
