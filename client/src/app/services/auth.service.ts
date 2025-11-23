@@ -1,9 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { User, AuthResponse } from '../utils/user.types';
+import { TokenService } from './token.service';
+import { Router } from '@angular/router';
 
 @Injectable({
   providedIn: 'root'
@@ -12,48 +14,65 @@ export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private tokenService: TokenService,
+    private router: Router
+  ) {
     this.loadUserFromStorage();
   }
 
   private loadUserFromStorage() {
-    const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
+    const token = this.tokenService.getAccessToken();
     
     if (token && userStr) {
       const user = JSON.parse(userStr);
       this.currentUserSubject.next(user);
+      
+      // 检查 token 是否过期，如果过期则尝试刷新
+      if (this.tokenService.isTokenExpired()) {
+        this.tokenService.refreshToken().pipe(
+          catchError(() => {
+            this.logout();
+            return of(null);
+          })
+        ).subscribe();
+      }
     }
   }
 
   login(email: string, password: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/login`, { email, password })
-      .pipe(map(response => {
-        if (response.token && response.user) {
-          localStorage.setItem('token', response.token);
-          localStorage.setItem('user', JSON.stringify(response.user));
-          this.currentUserSubject.next(response.user);
-        }
-        return response;
-      }));
+      .pipe(
+        tap(response => {
+          if (response.accessToken && response.refreshToken && response.user) {
+            this.tokenService.setAccessToken(response.accessToken);
+            localStorage.setItem('user', JSON.stringify(response.user));
+            this.currentUserSubject.next(response.user);
+          }
+        })
+      );
   }
 
   register(userData: any): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/register`, userData)
-      .pipe(map(response => {
-        if (response.token && response.user) {
-          localStorage.setItem('token', response.token);
-          localStorage.setItem('user', JSON.stringify(response.user));
-          this.currentUserSubject.next(response.user);
-        }
-        return response;
-      }));
+      .pipe(
+        tap(response => {
+          if (response.accessToken && response.refreshToken && response.user) {
+            this.tokenService.setAccessToken(response.accessToken);
+            localStorage.setItem('user', JSON.stringify(response.user));
+            this.currentUserSubject.next(response.user);
+          }
+        })
+      );
   }
 
   logout() {
-    localStorage.removeItem('token');
+    this.tokenService.clearTokens();
     localStorage.removeItem('user');
     this.currentUserSubject.next(null);
+    this.router.navigate(['/login']);
   }
 
   getCurrentUser(): User | null {
@@ -61,7 +80,7 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return !!this.currentUserSubject.value;
+    return !!this.currentUserSubject.value && !!this.tokenService.getAccessToken();
   }
 
   hasRole(role: string): boolean {
@@ -70,7 +89,7 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem('token');
+    return this.tokenService.getAccessToken();
   }
 
   forgotPassword(email: string): Observable<any> {

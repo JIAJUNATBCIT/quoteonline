@@ -7,7 +7,18 @@
         </div>
         <div class="card-body">
           <form [formGroup]="quoteForm" (ngSubmit)="onSubmit()">
-            <!-- 标题将自动从文件名生成，无需用户输入 -->
+            <div class="mb-3">
+              <label for="title" class="form-label">询价标题</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                id="title"
+                formControlName="title"
+                placeholder="请输入询价标题（可选，如不填写将使用文件名作为标题）">
+              <div class="form-text">
+                请输入询价标题，如不填写将使用文件名作为标题
+              </div>
+            </div>
 
             <div class="mb-3">
               <label for="description" class="form-label">询价描述</label>
@@ -26,14 +37,21 @@
                 class="form-control" 
                 id="customerFile"
                 accept=".xlsx,.xls"
-                (change)="onFileSelected($event)"
-                [class.is-invalid]="!selectedFile">
+                multiple
+                (change)="onFilesSelected($event)"
+                [class.is-invalid]="!selectedFiles || selectedFiles.length === 0">
               <div class="form-text">
-                请上传Excel文件 (.xlsx 或 .xls)，文件大小不超过10MB
+                请上传Excel文件 (.xlsx 或 .xls)，文件大小不超过10MB，支持多选
               </div>
-              <div *ngIf="selectedFile" class="mt-2">
-                <span class="badge bg-success">{{ selectedFile.name }}</span>
-                <span class="text-muted ms-2">({{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB)</span>
+              <div *ngIf="selectedFiles && selectedFiles.length > 0" class="mt-2">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div class="small text-muted">已选择 {{ selectedFiles.length }} 个文件：</div>
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="clearSelectedFiles()">清空文件</button>
+                </div>
+                <div *ngFor="let file of selectedFiles; let i = index" class="mt-1">
+                  <span class="badge bg-success me-1">{{ i + 1 }}. {{ file.name }}</span>
+                  <span class="text-muted">({{ (file.size / 1024 / 1024).toFixed(2) }} MB)</span>
+                </div>
               </div>
             </div>
 

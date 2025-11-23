@@ -22,24 +22,36 @@ const QuoteSchema = new mongoose.Schema({
   description: {
     type: String
   },
-  customerFile: {
+  customerFiles: [{
     filename: String,
     originalName: String,
     path: String,
-    size: Number
-  },
-  quoterFile: {
+    size: Number,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  quoterFiles: [{
     filename: String,
     originalName: String,
     path: String,
-    size: Number
-  },
-  supplierFile: {
+    size: Number,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  supplierFiles: [{
     filename: String,
     originalName: String,
     path: String,
-    size: Number
-  },
+    size: Number,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   supplier: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

@@ -2,6 +2,12 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const { 
+  generateAccessToken, 
+  generateRefreshToken, 
+  verifyRefreshToken,
+  getRefreshTokenFromRequest 
+} = require('../utils/tokenUtils');
 const router = express.Router();
 
 // Register
@@ -26,15 +32,21 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // Generate tokens
+    const accessToken = generateAccessToken({ userId: user._id, role: user.role });
+    const refreshToken = generateRefreshToken({ userId: user._id, role: user.role });
+
+    // Set refresh token in httpOnly cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 3 * 24 * 60 * 60 * 1000 // 3天
+    });
 
     res.status(201).json({
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         email: user.email,
@@ -84,15 +96,21 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: '无效的邮箱或密码' });
     }
 
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // Generate tokens
+    const accessToken = generateAccessToken({ userId: user._id, role: user.role });
+    const refreshToken = generateRefreshToken({ userId: user._id, role: user.role });
+
+    // Set refresh token in httpOnly cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 3 * 24 * 60 * 60 * 1000 // 3天
+    });
 
     res.json({
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         email: user.email,
@@ -201,6 +219,54 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+// Refresh access token
+router.post('/refresh', async (req, res) => {
+  try {
+    const refreshToken = getRefreshTokenFromRequest(req);
+    
+    if (!refreshToken) {
+      return res.status(401).json({ message: '未提供 refresh token' });
+    }
+
+    // Verify refresh token
+    const decoded = verifyRefreshToken(refreshToken);
+    
+    // Check if user still exists and is active
+    const user = await User.findById(decoded.userId);
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: '用户不存在或已被禁用' });
+    }
+
+    // Generate new access token
+    const newAccessToken = generateAccessToken({ 
+      userId: user._id, 
+      role: user.role 
+    });
+
+    // Generate new refresh token (token rotation)
+    const newRefreshToken = generateRefreshToken({ 
+      userId: user._id, 
+      role: user.role 
+    });
+
+    // Set new refresh token in httpOnly cookie
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 3 * 24 * 60 * 60 * 1000 // 3天
+    });
+
+    res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(401).json({ message: '无效或过期的 refresh token' });
+  }
+});
+
 // Reset password
 router.post('/reset-password', async (req, res) => {
   try {
@@ -220,6 +286,13 @@ router.post('/reset-password', async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: '无效或过期的token' });
   }
+});
+
+// Logout
+router.post('/logout', (req, res) => {
+  // Clear refresh token cookie
+  res.clearCookie('refreshToken');
+  res.json({ message: '登出成功' });
 });
 
 module.exports = router;

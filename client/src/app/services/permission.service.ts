@@ -137,15 +137,19 @@ export class PermissionService {
         return fileType === 'customer' && 
                (quote.customer._id === user.id || quote.customer === user.id);
       case 'supplier':
-        // 供应商只能删除自己上传的供应商文件
+        // 供应商只能删除自己上传的供应商文件，且在确认报价前
         return fileType === 'supplier' && 
-               quote.supplier && (quote.supplier._id === user.id || quote.supplier === user.id);
+               quote.supplier && (quote.supplier._id === user.id || quote.supplier === user.id) &&
+               !['supplier_quoted', 'quoted'].includes(quote.status);
       case 'quoter':
         // 报价员只能删除自己上传的报价文件
         return fileType === 'quoter' && 
                quote.quoter && (quote.quoter._id === user.id || quote.quoter === user.id);
       case 'admin':
-        // 管理员可以删除任何文件
+        // 管理员可以删除任何文件，但不能删除已确认报价的供应商文件
+        if (fileType === 'supplier' && ['supplier_quoted', 'quoted'].includes(quote.status)) {
+          return false;
+        }
         return true;
       default:
         return false;
