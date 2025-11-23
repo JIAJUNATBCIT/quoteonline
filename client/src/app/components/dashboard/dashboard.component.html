@@ -197,21 +197,21 @@
                 <td (click)="$event.stopPropagation()">
                   <div class="btn-group btn-group-sm">
                     <button 
-                      *ngIf="quote.customerFile" 
+                      *ngIf="quote.customerFiles && quote.customerFiles.length > 0" 
                       class="btn btn-outline-secondary"
                       (click)="downloadFile(quote._id, 'customer')"
                       title="下载询价文件">
                       询价
                     </button>
                     <button 
-                      *ngIf="quote.supplierFile" 
+                      *ngIf="quote.supplierFiles && quote.supplierFiles.length > 0" 
                       class="btn btn-outline-info"
                       (click)="downloadFile(quote._id, 'supplier')"
                       title="下载供应商报价文件">
                       供应商
                     </button>
                     <button 
-                      *ngIf="quote.quoterFile" 
+                      *ngIf="quote.quoterFiles && quote.quoterFiles.length > 0" 
                       class="btn btn-outline-success"
                       (click)="downloadFile(quote._id, 'quoter')"
                       title="下载报价文件">

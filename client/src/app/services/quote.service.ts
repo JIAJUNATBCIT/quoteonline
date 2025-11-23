@@ -8,6 +8,7 @@ export interface QuoteFile {
   originalName: string;
   path: string;
   size: number;
+  uploadedAt?: Date;
 }
 
 export interface Quote {
@@ -18,9 +19,10 @@ export interface Quote {
   supplier?: any;
   title: string;
   description?: string;
-  customerFile?: QuoteFile;
-  quoterFile?: QuoteFile;
-  supplierFile?: QuoteFile;
+  customerFiles?: QuoteFile[];
+  quoterFiles?: QuoteFile[];
+  supplierFiles?: QuoteFile[];
+
   status: 'pending' | 'supplier_quoted' | 'in_progress' | 'quoted' | 'cancelled' | 'rejected';
   customerMessage?: string;
   quoterMessage?: string;
@@ -66,17 +68,38 @@ export class QuoteService {
     return this.http.patch<Quote>(`${environment.apiUrl}/quotes/${id}/assign-supplier`, { supplierId });
   }
 
+  removeSupplierAssignment(id: string): Observable<Quote> {
+    return this.http.patch<Quote>(`${environment.apiUrl}/quotes/${id}/remove-supplier`, {});
+  }
+
   rejectQuote(id: string, rejectReason: string): Observable<Quote> {
     return this.http.patch<Quote>(`${environment.apiUrl}/quotes/${id}/reject`, { rejectReason });
   }
 
-  downloadFile(quoteId: string, fileType: string): Observable<Blob> {
-    return this.http.get(`${environment.apiUrl}/quotes/${quoteId}/download/${fileType}`, {
+  downloadFile(quoteId: string, fileType: string, fileIndex?: number): Observable<Blob> {
+    const url = fileIndex !== undefined 
+      ? `${environment.apiUrl}/quotes/${quoteId}/download/${fileType}-${fileIndex}`
+      : `${environment.apiUrl}/quotes/${quoteId}/download/${fileType}`;
+    return this.http.get(url, {
+      responseType: 'blob'
+    });
+  }
+
+  downloadFilesBatch(quoteId: string, fileType: string): Observable<Blob> {
+    return this.http.get(`${environment.apiUrl}/quotes/${quoteId}/download/${fileType}/batch`, {
       responseType: 'blob'
     });
   }
 
   deleteQuote(id: string): Observable<void> {
     return this.http.delete<void>(`${environment.apiUrl}/quotes/${id}`);
+  }
+
+  confirmSupplierQuote(id: string): Observable<Quote> {
+    return this.http.patch<Quote>(`${environment.apiUrl}/quotes/${id}/confirm-supplier-quote`, {});
+  }
+
+  confirmFinalQuote(id: string): Observable<Quote> {
+    return this.http.patch<Quote>(`${environment.apiUrl}/quotes/${id}/confirm-final-quote`, {});
   }
 }

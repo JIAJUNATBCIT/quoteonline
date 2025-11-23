@@ -54,7 +54,7 @@ export class QuotePublicComponent implements OnInit {
   }
 
   downloadCustomerFile() {
-    if (this.quote?.customerFile?.filename) {
+    if (this.quote?.customerFiles?.length > 0) {
       window.open(`${environment.apiUrl}/quotes/public/${this.quote._id}/download/customer`, '_blank');
     }
   }

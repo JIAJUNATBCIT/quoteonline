@@ -133,6 +133,12 @@ const EmailTemplates = {
               <span class="info-value">${escapeHtml(quote.customerMessage) || '无'}</span>
             </div>
             <div class="info-row">
+              <span class="info-label">询价文件:</span>
+              <span class="info-value">${(quote.customerFiles && quote.customerFiles.length > 0) 
+                ? quote.customerFiles.map(file => escapeHtml(file.originalName)).join(', ')
+                : '无'}</span>
+            </div>
+            <div class="info-row">
               <span class="info-label">创建时间:</span>
               <span class="info-value">${quote.createdAt.toLocaleString('zh-CN')}</span>
             </div>
@@ -416,6 +422,12 @@ const EmailTemplates = {
               <span class="info-value">${escapeHtml(quote.customerMessage) || '无'}</span>
             </div>
             <div class="info-row">
+              <span class="info-label">询价文件:</span>
+              <span class="info-value">${(quote.customerFiles && quote.customerFiles.length > 0) 
+                ? quote.customerFiles.map(file => escapeHtml(file.originalName)).join(', ')
+                : '无'}</span>
+            </div>
+            <div class="info-row">
               <span class="info-label">创建时间:</span>
               <span class="info-value">${quote.createdAt.toLocaleString('zh-CN')}</span>
             </div>
@@ -569,10 +581,10 @@ const EmailTemplates = {
               <span class="info-label">公司:</span>
               <span class="info-value">${escapeHtml(quote.supplier.company || '未知')}</span>
             </div>
-            ${quote.supplierFile ? `
+            ${(quote.supplierFiles && quote.supplierFiles.length > 0) ? `
             <div class="info-item">
               <span class="info-label">报价文件:</span>
-              <span class="info-value">${escapeHtml(quote.supplierFile.originalName)}</span>
+              <span class="info-value">${quote.supplierFiles.map(file => escapeHtml(file.originalName)).join(', ')}</span>
             </div>
             ` : ''}
           </div>
@@ -710,6 +722,205 @@ const EmailTemplates = {
       </div>
     </body>
     </html>
+  `,
+
+  // 生成供应商确认报价邮件模板（发送给报价员）
+  supplierQuotedNotification: (quote) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>供应商已报价 - ${quote.quoteNumber}</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #f4f4f4;
+        }
+        .container {
+          background-color: #ffffff;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          overflow: hidden;
+        }
+        .header {
+          background-color: #28a745;
+          color: white;
+          padding: 30px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 300;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .quote-info {
+          background-color: #f8f9fa;
+          border-left: 4px solid #28a745;
+          padding: 20px;
+          margin: 20px 0;
+          border-radius: 0 4px 4px 0;
+        }
+        .btn {
+          display: inline-block;
+          padding: 12px 30px;
+          background-color: #28a745;
+          color: white;
+          text-decoration: none;
+          border-radius: 5px;
+          font-weight: 500;
+          margin: 20px 0;
+          transition: background-color 0.3s;
+        }
+        .btn:hover {
+          background-color: #218838;
+        }
+        .footer {
+          background-color: #f8f9fa;
+          padding: 20px 30px;
+          text-align: center;
+          font-size: 14px;
+          color: #6c757d;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>供应商已报价</h1>
+        </div>
+        <div class="content">
+          <p>您好，</p>
+          <p>供应商 <strong>${quote.supplier ? escapeHtml(quote.supplier.name) : ''}</strong> 已经确认报价，请查看并上传最终报价文件。</p>
+          
+          <div class="quote-info">
+            <h3>询价单信息</h3>
+            <p><strong>询价号:</strong> ${escapeHtml(quote.quoteNumber)}</p>
+            <p><strong>标题:</strong> ${escapeHtml(quote.title)}</p>
+            <p><strong>供应商:</strong> ${quote.supplier ? escapeHtml(quote.supplier.name) : ''} (${quote.supplier ? escapeHtml(quote.supplier.email) : ''})</p>
+            <p><strong>报价文件:</strong> ${quote.supplierFiles && quote.supplierFiles.length > 0 
+              ? quote.supplierFiles.map(file => escapeHtml(file.originalName)).join(', ')
+              : '无'}</p>
+          </div>
+          
+          <p>请及时处理此询价单，上传最终报价文件给客户。</p>
+          
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:4200'}/quotes/${quote._id}" class="btn">查看询价详情</a>
+        </div>
+        <div class="footer">
+          <p>此邮件由询价系统自动发送，请勿回复。</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
+
+  // 生成最终报价确认邮件模板（发送给客户）
+  finalQuoteNotification: (quote) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>最终报价已确认 - ${quote.quoteNumber}</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #f4f4f4;
+        }
+        .container {
+          background-color: #ffffff;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          overflow: hidden;
+        }
+        .header {
+          background-color: #007bff;
+          color: white;
+          padding: 30px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 300;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .quote-info {
+          background-color: #f8f9fa;
+          border-left: 4px solid #007bff;
+          padding: 20px;
+          margin: 20px 0;
+          border-radius: 0 4px 4px 0;
+        }
+        .btn {
+          display: inline-block;
+          padding: 12px 30px;
+          background-color: #007bff;
+          color: white;
+          text-decoration: none;
+          border-radius: 5px;
+          font-weight: 500;
+          margin: 20px 0;
+          transition: background-color 0.3s;
+        }
+        .btn:hover {
+          background-color: #0056b3;
+        }
+        .footer {
+          background-color: #f8f9fa;
+          padding: 20px 30px;
+          text-align: center;
+          font-size: 14px;
+          color: #6c757d;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>最终报价已确认</h1>
+        </div>
+        <div class="content">
+          <p>尊敬的客户，</p>
+          <p>您的询价单 <strong>${escapeHtml(quote.quoteNumber)}</strong> 的最终报价已经确认完成。</p>
+          
+          <div class="quote-info">
+            <h3>询价单信息</h3>
+            <p><strong>询价号:</strong> ${escapeHtml(quote.quoteNumber)}</p>
+            <p><strong>标题:</strong> ${escapeHtml(quote.title)}</p>
+            <p><strong>描述:</strong> ${escapeHtml(quote.description || '')}</p>
+            <p><strong>报价员:</strong> ${quote.quoter && quote.quoter.name ? escapeHtml(quote.quoter.name) : '未分配'}${quote.quoter && quote.quoter.email ? ` (${escapeHtml(quote.quoter.email)})` : ''}</p>
+            <p><strong>最终报价文件:</strong> ${quote.quoterFiles && quote.quoterFiles.length > 0 
+              ? quote.quoterFiles.map(file => escapeHtml(file.originalName)).join(', ')
+              : '无'}</p>
+          </div>
+          
+          <p>您可以登录系统下载最终报价文件。</p>
+          
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:4200'}/quotes/${quote._id}" class="btn">查看询价详情</a>
+        </div>
+        <div class="footer">
+          <p>此邮件由询价系统自动发送，请勿回复。</p>
+        </div>
+      </div>
+    </body>
+    </html>
   `
 };
 
@@ -740,30 +951,35 @@ const sendQuoteNotification = async (quoterEmail, quote) => {
       to: quoterEmail,
       subject: `新的询价请求 - ${quote.quoteNumber} - ${quote.title}`,
       html: EmailTemplates.quoteNotification(quote),
-      attachments: quote.customerFile && quote.customerFile.path ? (() => {
+      attachments: (quote.customerFiles && quote.customerFiles.length > 0) ? (() => {
         try {
-          // 尝试读取文件内容
-          const fileContent = fs.readFileSync(quote.customerFile.path);
+          const files = quote.customerFiles;
+          const attachments = [];
           
-          // 使用数据库中已修复的文件名，不再进行额外的编码修复
-          let originalName = quote.customerFile.originalName;
-          logger.info('使用客户文件附件', { 
-            originalName: originalName,
-            fileSize: fileContent.length
-          });
+          for (const file of files) {
+            if (file.path) {
+              // 尝试读取文件内容
+              const fileContent = fs.readFileSync(file.path);
+              
+              logger.info('使用客户文件附件', { 
+                originalName: file.originalName,
+                fileSize: fileContent.length
+              });
+              
+              attachments.push({
+                filename: file.originalName,
+                content: fileContent
+              });
+            }
+          }
           
           logger.info('发送客户文件附件', { 
-            originalName: originalName,
-            fileSize: fileContent.length
+            fileCount: attachments.length
           });
           
-          return [{
-            filename: originalName,
-            content: fileContent
-          }];
+          return attachments;
         } catch (error) {
           logger.error('读取客户文件失败', { 
-            path: quote.customerFile.path, 
             error: error.message 
           });
           return [];
@@ -794,30 +1010,35 @@ const sendQuoteResponse = async (customerEmail, quote) => {
       to: customerEmail,
       subject: `报价回复 - ${quote.quoteNumber} - ${quote.title}`,
       html: EmailTemplates.quoteResponse(quote),
-      attachments: quote.quoterFile && quote.quoterFile.path ? (() => {
+      attachments: (quote.quoterFiles && quote.quoterFiles.length > 0) ? (() => {
         try {
-          // 尝试读取文件内容
-          const fileContent = fs.readFileSync(quote.quoterFile.path);
+          const files = quote.quoterFiles;
+          const attachments = [];
           
-          // 使用数据库中已修复的文件名，不再进行额外的编码修复
-          let originalName = quote.quoterFile.originalName;
-          logger.info('使用报价员文件附件', { 
-            originalName: originalName,
-            fileSize: fileContent.length
-          });
+          for (const file of files) {
+            if (file.path) {
+              // 尝试读取文件内容
+              const fileContent = fs.readFileSync(file.path);
+              
+              logger.info('使用报价员文件附件', { 
+                originalName: file.originalName,
+                fileSize: fileContent.length
+              });
+              
+              attachments.push({
+                filename: file.originalName,
+                content: fileContent
+              });
+            }
+          }
           
           logger.info('发送报价员文件附件', { 
-            originalName: originalName,
-            fileSize: fileContent.length
+            fileCount: attachments.length
           });
           
-          return [{
-            filename: originalName,
-            content: fileContent
-          }];
+          return attachments;
         } catch (error) {
           logger.error('读取报价员文件失败', { 
-            path: quote.quoterFile.path, 
             error: error.message 
           });
           return [];
@@ -942,10 +1163,92 @@ const sendSupplierQuoteNotification = async (quoterEmail, quote) => {
   }
 };
 
+// 发送供应商确认报价邮件给报价员
+const sendSupplierQuotedNotification = async (quoterEmail, quote) => {
+  try {
+    const startTime = Date.now();
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: quoterEmail,
+      subject: `供应商已报价 - ${quote.quoteNumber} - ${quote.title}`,
+      html: EmailTemplates.supplierQuotedNotification(quote)
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    const endTime = Date.now();
+    
+    // 记录邮件发送日志
+    logger.email('发送', quoterEmail, quote.quoteNumber, true, null);
+    
+    return result;
+  } catch (error) {
+    logger.email('发送', quoterEmail, quote.quoteNumber, false, error);
+    throw new Error(`供应商确认报价邮件发送失败: ${error.message}`);
+  }
+};
+
+// 发送最终报价确认邮件给客户
+const sendFinalQuoteNotification = async (customerEmail, quote) => {
+  try {
+    const startTime = Date.now();
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: customerEmail,
+      subject: `最终报价已确认 - ${quote.quoteNumber} - ${quote.title}`,
+      html: EmailTemplates.finalQuoteNotification(quote),
+      attachments: (quote.quoterFiles && quote.quoterFiles.length > 0) ? (() => {
+        try {
+          const files = quote.quoterFiles;
+          const attachments = [];
+          
+          for (const file of files) {
+            if (file.path) {
+              // 尝试读取文件内容
+              const fileContent = fs.readFileSync(file.path);
+              
+              logger.info('使用最终报价文件附件', { 
+                originalName: file.originalName,
+                fileSize: fileContent.length
+              });
+              
+              attachments.push({
+                filename: file.originalName,
+                content: fileContent
+              });
+            }
+          }
+          
+          return attachments;
+        } catch (error) {
+          logger.error('读取最终报价文件失败', { 
+            error: error.message 
+          });
+          return [];
+        }
+      })() : []
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    const endTime = Date.now();
+    
+    // 记录邮件发送日志
+    logger.email('发送', customerEmail, quote.quoteNumber, true, null);
+    
+    return result;
+  } catch (error) {
+    logger.email('发送', customerEmail, quote.quoteNumber, false, error);
+    throw new Error(`最终报价确认邮件发送失败: ${error.message}`);
+  }
+};
+
 module.exports = {
   sendQuoteNotification,
   sendQuoteResponse,
   sendSupplierQuoteNotification,
   sendPasswordReset,
-  sendQuoterAssignmentNotification
+  sendQuoterAssignmentNotification,
+  sendSupplierQuotedNotification,
+  sendFinalQuoteNotification
 };

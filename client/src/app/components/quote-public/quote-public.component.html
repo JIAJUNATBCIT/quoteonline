@@ -73,15 +73,15 @@
               </div>
             </div>
 
-            <div class="row mb-4" *ngIf="quote.customerFile">
+            <div class="row mb-4" *ngIf="quote.customerFiles && quote.customerFiles.length > 0">
               <div class="col-12">
                 <h5>客户文件</h5>
                 <div class="border rounded p-3">
-                  <div class="d-flex justify-content-between align-items-center">
+                  <div *ngFor="let file of quote.customerFiles" class="d-flex justify-content-between align-items-center mb-2">
                     <div>
                       <i class="bi bi-file-earmark-excel text-success"></i>
-                      <strong class="ms-2">{{ quote.customerFile.originalName }}</strong>
-                      <small class="text-muted ms-2">({{ formatFileSize(quote.customerFile.size) }})</small>
+                      <strong class="ms-2">{{ file.originalName }}</strong>
+                      <small class="text-muted ms-2">({{ formatFileSize(file.size) }})</small>
                     </div>
                     <button class="btn btn-outline-primary btn-sm" (click)="downloadCustomerFile()">
                       <i class="bi bi-download"></i> 下载文件

@@ -12,7 +12,7 @@ export class QuoteCreateComponent {
   quoteForm: FormGroup;
   loading = false;
   error = '';
-  selectedFile: File | null = null;
+  selectedFiles: File[] = [];
 
   constructor(
     private formBuilder: FormBuilder,
@@ -20,35 +20,45 @@ export class QuoteCreateComponent {
     private quoteService: QuoteService
   ) {
     this.quoteForm = this.formBuilder.group({
+      title: [''], // 不设为必填，允许使用文件名作为默认值
       description: [''],
       customerMessage: ['']
     });
   }
 
-  onFileSelected(event: any) {
-    const file = event.target.files[0];
-    if (file) {
+  onFilesSelected(event: any) {
+    const files = Array.from(event.target.files) as File[];
+    const validFiles: File[] = [];
+    
+    for (const file of files) {
       // 检查文件类型
       if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-        this.error = '请选择Excel文件 (.xlsx 或 .xls)';
+        this.error = `文件 ${file.name} 不是Excel文件，请选择 .xlsx 或 .xls 文件`;
         event.target.value = '';
         return;
       }
       
       // 检查文件大小 (10MB限制)
       if (file.size > 10 * 1024 * 1024) {
-        this.error = '文件大小不能超过10MB';
+        this.error = `文件 ${file.name} 大小超过10MB`;
         event.target.value = '';
         return;
       }
       
-      this.selectedFile = file;
+      validFiles.push(file);
+    }
+    
+    if (validFiles.length > 0) {
+      this.selectedFiles = [...this.selectedFiles, ...validFiles];
       this.error = '';
     }
+    
+    // 清空input值，允许重复选择相同文件
+    event.target.value = '';
   }
 
   onSubmit() {
-    if (!this.selectedFile) {
+    if (!this.selectedFiles || this.selectedFiles.length === 0) {
       this.error = '请选择Excel文件';
       return;
     }
@@ -56,15 +66,21 @@ export class QuoteCreateComponent {
     this.loading = true;
     this.error = '';
 
-    // 从文件名生成标题（去掉扩展名）
-    const fileName = this.selectedFile.name;
-    const title = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+    // 使用用户输入的标题，如果没有输入则使用第一个文件名（去掉扩展名）
+    const userTitle = this.quoteForm.get('title')?.value?.trim();
+    const fileName = this.selectedFiles[0].name;
+    const defaultTitle = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+    const title = userTitle || defaultTitle;
 
     const formData = new FormData();
     formData.append('title', title);
     formData.append('description', this.quoteForm.get('description')?.value || '');
     formData.append('customerMessage', this.quoteForm.get('customerMessage')?.value || '');
-    formData.append('customerFile', this.selectedFile);
+    
+    // 添加多个文件，使用customerFiles字段名
+    this.selectedFiles.forEach(file => {
+      formData.append('customerFiles', file);
+    });
 
     this.quoteService.createQuote(formData).subscribe({
       next: () => {
@@ -75,5 +91,19 @@ export class QuoteCreateComponent {
         this.loading = false;
       }
     });
+  }
+
+  // 清空选中的文件
+  clearSelectedFiles() {
+    this.selectedFiles = [];
+  }
+
+  // 格式化文件大小显示
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 }

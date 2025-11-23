@@ -10,6 +10,9 @@ const app = express();
 // Middleware
 app.use(cors());
 
+// Cookie parser middleware
+app.use(require('cookie-parser')());
+
 app.use(express.json({ limit: '10mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '10mb', parameterLimit: 1000 }));
 
