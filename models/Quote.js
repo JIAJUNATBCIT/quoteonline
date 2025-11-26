@@ -79,6 +79,10 @@ const QuoteSchema = new mongoose.Schema({
   },
   validUntil: {
     type: Date
+  },
+  urgent: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

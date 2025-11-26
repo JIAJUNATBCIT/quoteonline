@@ -8,6 +8,7 @@ const User = require('../models/User');
 const { auth, authorize } = require('../middleware/auth');
 const emailService = require('../services/emailService');
 const logger = require('../utils/logger');
+const PermissionUtils = require('../utils/permissionUtils');
 const router = express.Router();
 const iconv = require('iconv-lite');
 
@@ -57,33 +58,7 @@ const upload = multer({
 
 
 
-// 根据用户角色过滤询价单数据
-function filterQuoteData(quote, userRole) {
-  const quoteObj = quote.toObject ? quote.toObject() : quote;
-  
-  switch (userRole) {
-    case 'customer':
-      delete quoteObj.quoter;
-      delete quoteObj.supplier;
-      delete quoteObj.supplierFiles; // 客户永远看不到供应商文件
-      if (quoteObj.status !== 'quoted') {
-        delete quoteObj.quoterFiles;
-      }
-      break;
-    case 'supplier':
-      delete quoteObj.customer;
-      delete quoteObj.quoter;
-      delete quoteObj.quoterFiles;
-      // 供应商应该能看到客户文件以便报价
-      break;
-    case 'quoter':
-      // 报价员可以看到所有信息（除了某些敏感字段）
-      break;
-    // admin 可以看到所有信息
-  }
-  
-  return quoteObj;
-}
+
 
 // 尝试把乱码文件名修复为 UTF-8 中文
 function fixFileName(name) {
@@ -102,12 +77,7 @@ function fixFileName(name) {
       return utf8;
     }
 
-    // 如需尝试 GBK → UTF-8，可以打开下面这段：
-    // const gbkBuf = Buffer.from(name, 'binary');
-    // const utf8FromGbk = iconv.decode(gbkBuf, 'gbk');
-    // if (/[\u4e00-\u9fa5]/.test(utf8FromGbk)) {
-    //   return utf8FromGbk;
-    // }
+
 
     return name;
   } catch (e) {
@@ -283,6 +253,10 @@ router.get('/', auth, async (req, res) => {
             { status: 'in_progress' } // 显示处理中的询价单（供应商可以看到但可能无法操作）
           ]
         };
+        populates = [
+          { path: 'customer', select: 'name email company' },
+          { path: 'supplier', select: 'name email company' }
+        ];
         break;
       case 'quoter':
       case 'admin':
@@ -305,7 +279,7 @@ router.get('/', auth, async (req, res) => {
     const quotes = await quotesQuery;
     
     // 过滤数据
-    const filteredQuotes = quotes.map(quote => filterQuoteData(quote, req.user.role));
+    const filteredQuotes = quotes.map(quote => PermissionUtils.filterQuoteData(quote, req.user.role));
     
     res.json(filteredQuotes);
   } catch (error) {
@@ -345,7 +319,7 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     // 使用通用过滤函数处理数据
-    const filteredQuote = filterQuoteData(quote, req.user.role);
+    const filteredQuote = PermissionUtils.filterQuoteData(quote, req.user.role);
     
     res.json(filteredQuote);
   } catch (error) {
@@ -400,8 +374,8 @@ router.put('/:id', auth, upload.fields([
       }
       
       // 只有在上传文件且状态不允许时才拒绝
-      if (hasFileUpload && quote.status !== 'in_progress' && quote.status !== 'rejected') {
-        return res.status(403).json({ message: '该询价单尚未分配给供应商，无法上传' });
+      if (hasFileUpload && !['in_progress', 'rejected', 'supplier_quoted'].includes(quote.status)) {
+        return res.status(403).json({ message: '该询价单当前状态不允许上传文件' });
       }
       
       // 只有在删除文件且不是文件所有者时才拒绝
@@ -412,15 +386,20 @@ router.put('/:id', auth, upload.fields([
 
     const updateData = { ...req.body };
     
+    // 处理 urgent 字段（字符串转布尔值）
+    if (req.body.urgent !== undefined) {
+      updateData.urgent = req.body.urgent === 'true';
+    }
+    
     // 处理特定文件索引删除
     if (req.body.deleteFileIndex !== undefined && req.body.deleteFileType) {
       const fileIndex = parseInt(req.body.deleteFileIndex);
       const fileType = req.body.deleteFileType;
       const fileArrayName = fileType + 'Files';
       
-      // 检查供应商文件删除权限：确认报价后不能删除
-      if (fileType === 'supplier' && ['supplier_quoted', 'quoted'].includes(quote.status)) {
-        return res.status(403).json({ message: '供应商已确认报价，无法删除文件' });
+      // 检查文件删除权限
+      if (!PermissionUtils.canDeleteFile(fileType, quote, req.user)) {
+        return res.status(403).json({ message: '您没有权限删除此文件' });
       }
       
       if (quote[fileArrayName] && quote[fileArrayName].length > fileIndex) {
@@ -441,22 +420,48 @@ router.put('/:id', auth, upload.fields([
         // 更新数据库中的文件数组
         updateData[fileArrayName] = updatedFiles;
         logger.info(`删除文件 ${deletedFile.originalName} (索引: ${fileIndex})`);
+        
+        // 如果删除的是供应商文件，且删除后没有文件了，且当前状态是"供应商已报价"，则回退到"处理中"
+        if (fileType === 'supplier' && updatedFiles.length === 0 && quote.status === 'supplier_quoted') {
+          updateData.status = 'in_progress';
+          logger.info(`供应商删除最后一个文件，询价单状态从 supplier_quoted 回退到 in_progress`, {
+            quoteId: req.params.id,
+            userId: req.user.userId
+          });
+        }
       }
     }
     // 处理整个文件数组删除（保留原有逻辑以兼容）
     else if (req.body.deleteCustomerFiles === 'true') {
+      // 检查客户文件删除权限
+      if (!PermissionUtils.canDeleteFile('customer', quote, req.user)) {
+        return res.status(403).json({ message: '您没有权限删除此文件' });
+      }
       updateData.$unset = updateData.$unset || {};
       updateData.$unset.customerFiles = 1;
     }
     else if (req.body.deleteSupplierFiles === 'true') {
-      // 检查供应商文件删除权限：确认报价后不能删除
-      if (['supplier_quoted', 'quoted'].includes(quote.status)) {
-        return res.status(403).json({ message: '供应商已确认报价，无法删除文件' });
+      // 检查供应商文件删除权限
+      if (!PermissionUtils.canDeleteFile('supplier', quote, req.user)) {
+        return res.status(403).json({ message: '您没有权限删除此文件' });
       }
       updateData.$unset = updateData.$unset || {};
       updateData.$unset.supplierFiles = 1;
+      
+      // 如果供应商删除所有文件且当前状态是"供应商已报价"，则回退到"处理中"
+      if (quote.status === 'supplier_quoted') {
+        updateData.status = 'in_progress';
+        logger.info(`供应商删除所有文件，询价单状态从 supplier_quoted 回退到 in_progress`, {
+          quoteId: req.params.id,
+          userId: req.user.userId
+        });
+      }
     }
     else if (req.body.deleteQuoterFiles === 'true') {
+      // 检查报价员文件删除权限
+      if (!PermissionUtils.canDeleteFile('quoter', quote, req.user)) {
+        return res.status(403).json({ message: '您没有权限删除此文件' });
+      }
       updateData.$unset = updateData.$unset || {};
       updateData.$unset.quoterFiles = 1;
     }
@@ -467,7 +472,8 @@ router.put('/:id', auth, upload.fields([
         quoteId: req.params.id,
         userId: req.user.userId,
         userRole: req.user.role,
-        fileCount: allFiles.length
+        fileCount: allFiles.length,
+        frontendFileType: req.body.fileType
       });
       
       const newFiles = allFiles.map(file => {
@@ -481,45 +487,83 @@ router.put('/:id', auth, upload.fields([
         };
       });
       
-      // 根据当前登录用户的角色决定文件存储位置
+      // 优先使用前端传递的文件类型，如果没有则根据用户角色推断
       let targetFileArray;
       let roleSpecificUpdate = {};
       
-      switch (req.user.role) {
-        case 'customer':
-          targetFileArray = 'customerFiles';
-          break;
-        case 'supplier':
-          targetFileArray = 'supplierFiles';
-          roleSpecificUpdate.supplier = req.user.userId;
-          
-          // 如果之前是拒绝状态，清除拒绝理由
-          if (quote.status === 'rejected') {
-            updateData.$unset = updateData.$unset || {};
-            updateData.$unset.rejectReason = 1;
-            logger.info(`供应商重新上传文件，清除拒绝理由`, { 
-              quoteId: req.params.id,
-              supplierId: req.user.userId
-            });
-          }
-          break;
-        case 'quoter':
-        case 'admin':
-          targetFileArray = 'quoterFiles';
-          roleSpecificUpdate.quoter = req.user.userId;
-          
-          // 如果之前有拒绝理由，清除它
-          if (quote.rejectReason) {
-            updateData.$unset = updateData.$unset || {};
-            updateData.$unset.rejectReason = 1;
-            logger.info(`清除拒绝理由，上传最终报价文件`, { 
-              quoteId: req.params.id,
-              quoterId: req.user.userId
-            });
-          }
-          break;
-        default:
-          return res.status(403).json({ message: '无效的用户角色' });
+      if (req.body.fileType) {
+        // 前端明确指定了文件类型
+        switch (req.body.fileType) {
+          case 'customer':
+            targetFileArray = 'customerFiles';
+            break;
+          case 'supplier':
+            targetFileArray = 'supplierFiles';
+            roleSpecificUpdate.supplier = req.user.userId;
+            break;
+          case 'quoter':
+            targetFileArray = 'quoterFiles';
+            roleSpecificUpdate.quoter = req.user.userId;
+            break;
+          default:
+            logger.warn(`前端传递了无效的文件类型: ${req.body.fileType}，将根据用户角色推断`);
+            // 根据用户角色推断
+            switch (req.user.role) {
+              case 'customer':
+                targetFileArray = 'customerFiles';
+                break;
+              case 'supplier':
+                targetFileArray = 'supplierFiles';
+                roleSpecificUpdate.supplier = req.user.userId;
+                break;
+              case 'quoter':
+              case 'admin':
+                targetFileArray = 'quoterFiles';
+                roleSpecificUpdate.quoter = req.user.userId;
+                break;
+              default:
+                return res.status(403).json({ message: '无效的用户角色' });
+            }
+        }
+      } else {
+        // 前端没有指定文件类型，根据用户角色推断（保持原有逻辑）
+        switch (req.user.role) {
+          case 'customer':
+            targetFileArray = 'customerFiles';
+            break;
+          case 'supplier':
+            targetFileArray = 'supplierFiles';
+            roleSpecificUpdate.supplier = req.user.userId;
+            break;
+          case 'quoter':
+          case 'admin':
+            targetFileArray = 'quoterFiles';
+            roleSpecificUpdate.quoter = req.user.userId;
+            break;
+          default:
+            return res.status(403).json({ message: '无效的用户角色' });
+        }
+      }
+      
+      // 处理特殊状态逻辑
+      if (targetFileArray === 'supplierFiles' && quote.status === 'rejected') {
+        // 如果之前是拒绝状态，清除拒绝理由
+        updateData.$unset = updateData.$unset || {};
+        updateData.$unset.rejectReason = 1;
+        logger.info(`供应商重新上传文件，清除拒绝理由`, { 
+          quoteId: req.params.id,
+          supplierId: req.user.userId
+        });
+      }
+      
+      if (targetFileArray === 'quoterFiles' && quote.rejectReason) {
+        // 如果之前有拒绝理由，清除它
+        updateData.$unset = updateData.$unset || {};
+        updateData.$unset.rejectReason = 1;
+        logger.info(`清除拒绝理由，上传最终报价文件`, { 
+          quoteId: req.params.id,
+          quoterId: req.user.userId
+        });
       }
       
       // 如果已有文件，则添加到现有文件列表中
@@ -553,12 +597,6 @@ router.put('/:id', auth, upload.fields([
       });
     }
     
-
-    
-
-    
-
-
     const dbStartTime = Date.now();
     const updatedQuote = await Quote.findByIdAndUpdate(
       req.params.id,
@@ -579,7 +617,7 @@ router.put('/:id', auth, upload.fields([
     // 邮件通知移至 confirmFinalQuote 路由中处理
 
     // 使用通用过滤函数处理响应数据
-    const filteredQuote = filterQuoteData(updatedQuote, req.user.role);
+    const filteredQuote = PermissionUtils.filterQuoteData(updatedQuote, req.user.role);
     
     const totalTime = Date.now() - startTime;
     logger.request(req, totalTime);
@@ -646,7 +684,7 @@ router.patch('/:id/reject', auth, async (req, res) => {
      .populate('supplier', 'name email company');
 
     // 使用通用过滤函数处理响应数据
-    const filteredQuote = filterQuoteData(updatedQuote, req.user.role);
+    const filteredQuote = PermissionUtils.filterQuoteData(updatedQuote, req.user.role);
     res.json(filteredQuote);
   } catch (error) {
     logger.request(req, Date.now() - (req.startTime || Date.now()), error);
@@ -922,7 +960,7 @@ router.get('/:id/download/:fileType', auth, async (req, res) => {
     
     // 权限检查
     if (fileType === 'customer') {
-      // 客户可以下载自己的文件，供应商可以下载待处理询价的客户文件或自己已报价的客户文件
+      // 客户可以下载自己的文件，供应商可以下载待处理询价的客户文件或自己已报价的客户文件，报价员和管理员可以下载所有客户文件
       if (req.user.role === 'customer') {
         filePath = targetFile.path;
       } else if (req.user.role === 'supplier') {
@@ -930,6 +968,9 @@ router.get('/:id/download/:fileType', auth, async (req, res) => {
         if (!quote.supplier || quote.supplier._id?.toString() !== req.user.userId) {
           return res.status(403).json({ message: '权限不足：您不是当前分配的供应商' });
         }
+        filePath = targetFile.path;
+      } else if (req.user.role === 'quoter' || req.user.role === 'admin') {
+        // 报价员和管理员可以下载所有客户文件以便处理询价单
         filePath = targetFile.path;
       } else {
         return res.status(403).json({ message: '权限不足' });
@@ -953,7 +994,13 @@ router.get('/:id/download/:fileType', auth, async (req, res) => {
       }
     }
 
-    res.download(filePath);
+    // 使用正确的文件名编码，避免Windows下的编码问题
+    const safeFileName = `${quote.quoteNumber}_${fileType}_${Date.now()}${path.extname(targetFile.originalName)}`;
+    
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(safeFileName)}`);
+    
+    return fs.createReadStream(filePath).pipe(res);
   } catch (error) {
     logger.request(req, Date.now() - (req.startTime || Date.now()), error);
     res.status(500).json({ message: '服务器错误', error: error.message });
@@ -981,7 +1028,7 @@ router.get('/:id/download/:fileType/batch', auth, async (req, res) => {
     switch (req.params.fileType) {
       case 'customer':
         files = quote.customerFiles || [];
-        zipFileName = `${quote.quoteNumber}_客户询价文件.zip`;
+        zipFileName = `${quote.quoteNumber}_customer_files.zip`;
         
         // 客户可以下载自己的文件，供应商必须是当前分配的供应商才能下载
         if (req.user.role !== 'customer') {
@@ -996,7 +1043,7 @@ router.get('/:id/download/:fileType/batch', auth, async (req, res) => {
         break;
       case 'supplier':
         files = quote.supplierFiles || [];
-        zipFileName = `${quote.quoteNumber}_供应商报价文件.zip`;
+        zipFileName = `${quote.quoteNumber}_supplier_files.zip`;
         
         // 供应商可以下载自己上传的文件，报价员和管理员可以下载所有供应商文件
         if (req.user.role !== 'supplier' && req.user.role !== 'quoter' && req.user.role !== 'admin') {
@@ -1008,7 +1055,7 @@ router.get('/:id/download/:fileType/batch', auth, async (req, res) => {
         break;
       case 'quoter':
         files = quote.quoterFiles || [];
-        zipFileName = `${quote.quoteNumber}_最终报价文件.zip`;
+        zipFileName = `${quote.quoteNumber}_quoter_files.zip`;
         
         // 只有报价员和管理员可以下载最终报价文件，客户只能在完成后下载
         if (req.user.role !== 'quoter' && req.user.role !== 'admin' && 
@@ -1024,14 +1071,11 @@ router.get('/:id/download/:fileType/batch', auth, async (req, res) => {
       return res.status(404).json({ message: '没有可下载的文件' });
     }
     
-    if (files.length === 1) {
-      // 如果只有一个文件，直接下载
-      return res.download(files[0].path);
-    }
-    
+    // 始终创建ZIP文件，即使只有一个文件，以确保一致性
     // 创建ZIP文件
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(zipFileName)}"`);
+    // 使用RFC 2231编码格式确保跨平台兼容性
+    res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"; filename*=UTF-8''${encodeURIComponent(zipFileName)}`);
     
     const archive = archiver('zip', {
       zlib: { level: 9 } // 最高压缩级别
@@ -1151,7 +1195,7 @@ router.patch('/:id/confirm-supplier-quote', auth, async (req, res) => {
     });
 
     // 使用通用过滤函数处理响应数据
-    const filteredQuote = filterQuoteData(updatedQuote, req.user.role);
+    const filteredQuote = PermissionUtils.filterQuoteData(updatedQuote, req.user.role);
     res.json(filteredQuote);
   } catch (error) {
     logger.request(req, Date.now() - (req.startTime || Date.now()), error);
@@ -1210,7 +1254,7 @@ router.patch('/:id/confirm-final-quote', auth, async (req, res) => {
     });
 
     // 使用通用过滤函数处理响应数据
-    const filteredQuote = filterQuoteData(updatedQuote, req.user.role);
+    const filteredQuote = PermissionUtils.filterQuoteData(updatedQuote, req.user.role);
     res.json(filteredQuote);
   } catch (error) {
     logger.request(req, Date.now() - (req.startTime || Date.now()), error);

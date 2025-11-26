@@ -44,9 +44,6 @@ export class DashboardComponent implements OnInit {
     this.loading = true;
     this.quoteService.getAllQuotes().subscribe({
       next: (quotes) => {
-        console.log('获取到的询价列表:', quotes);
-        console.log('rejected状态的询价:', quotes.filter(q => q.status === 'rejected'));
-        
         // 根据用户权限过滤询价
         const user = this.authService.getCurrentUser();
         if (user) {
@@ -65,8 +62,6 @@ export class DashboardComponent implements OnInit {
         } else {
           this.quotes = quotes;
         }
-        
-        console.log('过滤后的询价列表:', this.quotes);
         this.applyFiltersAndSort();
         this.loading = false;
       },
@@ -265,6 +260,103 @@ export class DashboardComponent implements OnInit {
     this.router.navigate(['/quotes', quoteId]);
   }
 
+  // 批量下载文件（一键下载）
+  downloadFilesBatch(quoteId: string, fileType: string) {
+    // 先获取询价单详情以获取询价单号和权限信息
+    this.quoteService.getQuoteById(quoteId).subscribe({
+      next: (quote) => {
+        // 根据用户角色和询价单状态决定下载哪个文件
+        const user = this.authService.getCurrentUser();
+        if (!user) return;
+        
+        let actualFileType = fileType;
+        
+        if (user.role === 'customer') {
+          // 客户：未报价时下载原文件，已报价时下载报价文件
+          actualFileType = quote.status === 'quoted' ? 'quoter' : 'customer';
+        }
+        
+        // 检查是否有文件可下载
+        const files = this.getFilesByType(quote, actualFileType);
+        if (!files || files.length === 0) {
+          alert('没有可下载的文件');
+          return;
+        }
+        
+        // 显示下载提示
+        const fileTypeName = this.getFileTypeName(actualFileType);
+        const confirmMessage = `确定要下载询价单 ${quote.quoteNumber} 的${fileTypeName}文件吗？`;
+        
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+        
+        this.quoteService.downloadFilesBatch(quoteId, actualFileType).subscribe({
+          next: (blob) => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            
+            // 生成ZIP文件名（使用英文避免字符编码问题）
+            const zipFileName = `${quote.quoteNumber}_${actualFileType}_files.zip`;
+            a.download = zipFileName;
+            
+            // 使用setTimeout确保DOM操作完成
+            setTimeout(() => {
+              a.click();
+              // 延迟清理URL和DOM元素
+              setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+              }, 100);
+            }, 0);
+          },
+          error: (error) => {
+            console.error('批量下载文件失败:', error);
+            const errorMessage = error.error?.message || error.message || '批量下载文件失败';
+            alert(`下载失败: ${errorMessage}`);
+          }
+        });
+      },
+      error: (error) => {
+        console.error('获取询价单详情失败:', error);
+        const errorMessage = error.error?.message || error.message || '获取询价单详情失败';
+        alert(`获取询价单详情失败: ${errorMessage}`);
+      }
+    });
+  }
+
+  // 辅助方法：根据文件类型获取文件列表
+  private getFilesByType(quote: Quote, fileType: string): any[] {
+    switch (fileType) {
+      case 'customer':
+        return quote.customerFiles || [];
+      case 'supplier':
+        return quote.supplierFiles || [];
+      case 'quoter':
+        return quote.quoterFiles || [];
+      default:
+        return [];
+    }
+  }
+
+  // 辅助方法：获取文件类型的中文名称
+  private getFileTypeName(fileType: string): string {
+    switch (fileType) {
+      case 'customer':
+        return '客户询价';
+      case 'supplier':
+        return '供应商报价';
+      case 'quoter':
+        return '最终报价';
+      default:
+        return '文件';
+    }
+  }
+
+  // 保留原有的单个文件下载方法（如果需要的话）
   downloadFile(quoteId: string, fileType: string) {
     // 先获取询价单详情以获取询价单号
     this.quoteService.getQuoteById(quoteId).subscribe({
