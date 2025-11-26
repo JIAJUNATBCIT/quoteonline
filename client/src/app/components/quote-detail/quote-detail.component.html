@@ -7,6 +7,34 @@
       </button>
     </div>
     
+    <!-- 询价进度条 -->
+    <div class="card-body bg-light py-3">
+      <div class="progress-container">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <small class="text-muted" style="font-weight: bold;font-size: large;">上传文件以推进报价进度</small>
+          <small class="text-muted">{{ getProgressPercentage() }}%</small>
+        </div>
+        <div class="progress" style="height: 25px;">
+          <div class="progress-bar" 
+               [ngClass]="getProgressBarClass()" 
+               role="progressbar" 
+               [style.width.%]="getProgressPercentage()"
+               [attr.aria-valuenow]="getProgressPercentage()" 
+               aria-valuemin="0" 
+               aria-valuemax="100">
+            {{ getProgressText() }}
+          </div>
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+          <small [ngClass]="getStepClass('pending')" class="progress-step">待处理</small>
+          <small [ngClass]="getStepClass('in_progress')" class="progress-step">处理中</small>
+          <small [ngClass]="getStepClass('supplier_quoted')" class="progress-step">核价中</small>
+          <small [ngClass]="getStepClass('rejected')" class="progress-step">不报价</small>
+          <small [ngClass]="getStepClass('quoted')" class="progress-step">最终报价完成</small>
+        </div>
+      </div>
+    </div>
+    
     <div class="card-body">
       <!-- 错误信息 -->
       <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
@@ -49,24 +77,38 @@
               {{ getStatusDisplayName(quote.status) }}
             </span>
           </div>
+          
+          <div class="mb-3" *ngIf="authService.hasRole('customer')">
+            <div class="form-check">
+              <input type="checkbox" 
+                     class="form-check-input" 
+                     id="urgentCheck"
+                     [(ngModel)]="quote.urgent"
+                     [disabled]="!canEdit() || uploading"
+                     (change)="updateUrgentStatus()">
+              <label class="form-check-label fw-bold" for="urgentCheck">
+                加急
+              </label>
+            </div>
+          </div>
         </div>
         
         <div class="col-md-6">
-          <div class="mb-3" *ngIf="authService.hasRole('customer') || authService.hasRole('quoter') || authService.hasRole('admin')">
+          <div class="mb-3">
             <label class="form-label fw-bold">客户:</label>
             <div class="form-control-plaintext">{{ quote.customer.name }} ({{ quote.customer.email }})</div>
           </div>
           
-          <div class="mb-3" *ngIf="quote.quoter && (authService.hasRole('quoter') || authService.hasRole('admin'))">
+          <div class="mb-3" *ngIf="quote.quoter">
             <label class="form-label fw-bold">报价员:</label>
             <div class="form-control-plaintext">{{ quote.quoter.name }} ({{ quote.quoter.email }})</div>
           </div>
           
-          <div class="mb-3" *ngIf="quote.supplier && (authService.hasRole('quoter') || authService.hasRole('admin'))">
+          <div class="mb-3" *ngIf="quote.supplier">
             <label class="form-label fw-bold">供应商:</label>
             <div class="d-flex align-items-center">
               <div class="form-control-plaintext me-2">{{ quote.supplier.name }} ({{ quote.supplier.email }})</div>
-              <button class="btn btn-link p-0 ms-2" (click)="removeSupplierAssignment()" [disabled]="assigning" title="移除供应商分配">
+              <button *ngIf="quote && authService.hasRole('quoter') && (quote.status === 'pending' || quote.status === 'in_progress')" class="btn btn-link p-0 ms-2" (click)="removeSupplierAssignment()" [disabled]="assigning" title="移除供应商分配">
                 <i class="bi bi-x-square-fill text-danger"></i>
               </button>
             </div>
@@ -84,22 +126,20 @@
         </div>
       </div>
       
-      <!-- 分配供应商 (报价员和管理员可见) -->
-      <div *ngIf="quote && (authService.hasRole('quoter') || authService.hasRole('admin'))">
-        <div *ngIf="quote && !quote.supplier && (isPendingStatus() || quote.status === 'in_progress')" class="mt-4">
-          <h5>分配供应商</h5>
-          <div class="mb-3">
-            <div class="input-group">
-              <select class="form-select" [(ngModel)]="selectedSupplierId">
-                <option value="">请选择供应商</option>
-                <option *ngFor="let supplier of suppliers" [value]="supplier._id">
-                  {{ supplier.name }} ({{ supplier.email }})
-                </option>
-              </select>
-              <button class="btn btn-primary" (click)="assignSupplier()" [disabled]="!selectedSupplierId || assigning">
-                {{ assigning ? '分配中...' : '分配' }}
-              </button>
-            </div>
+      <!-- 分配供应商 -->
+      <div *ngIf="quote && authService.hasRole('quoter') && (quote.status === 'pending' || quote.status === 'in_progress')" class="mt-4">
+        <h5>分配供应商</h5>
+        <div class="mb-3">
+          <div class="input-group">
+            <select class="form-select" [(ngModel)]="selectedSupplierId">
+              <option value="">请选择供应商</option>
+              <option *ngFor="let supplier of suppliers" [value]="supplier._id">
+                {{ supplier.name }} ({{ supplier.email }})
+              </option>
+            </select>
+            <button class="btn btn-primary" (click)="assignSupplier()" [disabled]="!selectedSupplierId || assigning">
+              {{ assigning ? '分配中...' : '分配' }}
+            </button>
           </div>
         </div>
       </div>
@@ -108,355 +148,174 @@
       <div *ngIf="quote" class="mt-4">
         <h5>文件操作</h5>
         
-        <!-- 客户用户 -->
-        <div *ngIf="authService.hasRole('customer')" class="mb-2">
-          <!-- 已报价状态：显示最终报价文件下载 -->
-          <div *ngIf="isQuotedStatus() && hasFiles('quoter')" class="mb-3 file-operation">
-            <div class="alert alert-success">
-              <strong>最终报价文件:</strong>
-              <div *ngFor="let file of getFiles('quoter'); let i = index" class="file-link-container">
-                <a href="javascript:void(0)" class="file-link text-success" (click)="downloadFile('quoter', i)" 
-                   [class.disabled]="uploading"
-                   title="{{ file.originalName }}">
-                  {{ file.originalName }}
-                </a>
-                <button *ngIf="canDeleteFile('quoter')" class="btn btn-outline-danger btn-sm ms-2" (click)="deleteFile('quoter', i)" [disabled]="uploading" title="删除文件">
-                  删除
-                </button>
-              </div>
-              <div class="mt-2" *ngIf="getFiles('quoter').length > 1">
-                <button class="btn btn-outline-success btn-sm" (click)="downloadFilesBatch('quoter')" [disabled]="uploading" title="一键下载所有最终报价文件">
-                  一键下载
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 客户文件操作 -->
-          <div *ngIf="hasFiles('customer')" class="mb-3 file-operation">
-            <div class="alert alert-primary">
-              <strong>已上传询价文件:</strong>
-              <div *ngFor="let file of getFiles('customer'); let i = index" class="file-link-container">
-                <a href="javascript:void(0)" class="file-link text-primary" (click)="downloadFile('customer', i)" 
-                   [class.disabled]="uploading"
-                   title="{{ file.originalName }}">
-                  {{ file.originalName }}
-                </a>
-                <!-- 在已报价状态下，客户不能删除自己的询价文件 -->
-                <button *ngIf="canDeleteFile('customer') && quote.status !== 'quoted'" class="btn btn-outline-danger btn-sm ms-2" (click)="deleteFile('customer', i)" [disabled]="uploading" title="删除文件">
-                  删除
-                </button>
-              </div>
-              <div class="mt-2" *ngIf="getFiles('customer').length > 1">
-                <button class="btn btn-outline-primary btn-sm" (click)="downloadFilesBatch('customer')" [disabled]="uploading" title="一键下载所有询价文件">
-                  一键下载
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 上传客户询价文件 - 仅在待处理状态显示 -->
-          <div *ngIf="isPendingStatus()">
-            <!-- 上传中状态 -->
-            <div *ngIf="uploading" class="upload-status text-center">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">上传中...</span>
-              </div>
-              <div class="upload-text">
-                正在上传询价文件，请稍候...
-              </div>
-            </div>
-            
-            <!-- 上传客户询价文件按钮 -->
-            <div *ngIf="!uploading" class="btn-group">
-              <label class="btn btn-outline-success">
-                上传询价文件
-                <input type="file" accept=".xlsx,.xls" multiple (change)="onFilesSelected($event)" [disabled]="uploading" style="display: none;">
-              </label>
-            </div>
-            
-            <!-- 提示信息 -->
-            <div *ngIf="!uploading" class="text-muted small mt-2">
-              支持选择多个Excel文件，每次选择后会追加到文件列表中
-            </div>
-            
-            <!-- 显示选择的文件列表 - 报价员和管理员在允许状态下可显示 -->
-            <div *ngIf="selectedFiles.length > 0 && !uploading && (canShowQuoterUpload())" class="mt-3">
-              <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <h6 class="mb-0">已选择的文件 ({{ selectedFiles.length }})</h6>
-                  <button class="btn btn-outline-secondary btn-sm" (click)="clearSelectedFiles()">清空</button>
-                </div>
-                <div class="card-body p-2">
-                  <ul class="list-unstyled mb-0">
-                    <li *ngFor="let file of selectedFiles; let i = index" class="mb-2 p-2 border rounded">
-                      <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                          <strong>{{ file.name }}</strong>
-                          <span class="text-muted ms-2">{{ formatFileSize(file.size) }}</span>
-                        </div>
-                        <button class="btn btn-outline-danger btn-sm" (click)="selectedFiles.splice(i, 1)">移除</button>
-                      </div>
-                    </li>
-                  </ul>
-                  <div class="mt-3">
-                    <button class="btn btn-primary" (click)="confirmUpload()" [disabled]="selectedFiles.length === 0">
-                      确认上传 ({{ selectedFiles.length }} 个文件)
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 供应商 -->
-        <div *ngIf="authService.hasRole('supplier')">
-          <!-- 供应商可以看到客户询价文件以便报价 -->
-          <div *ngIf="hasFiles('customer')" class="mb-3 file-operation">
-            <div class="alert alert-primary">
+        <!-- 客户询价文件 -->
+        <div *ngIf="hasFiles('customer')" class="mb-3 file-operation">
+          <div class="alert" [ngClass]="getTempFilesByType('customer').length > 0 ? 'alert-warning' : 'alert-primary'">
+            <div class="d-flex justify-content-between align-items-center">
               <strong>客户询价文件:</strong>
-              <div *ngFor="let file of getFiles('customer'); let i = index" class="file-link-container">
-                <a href="javascript:void(0)" class="file-link text-primary" (click)="downloadFile('customer', i)" 
-                   [class.disabled]="uploading"
-                   title="{{ file.originalName }}">
-                  {{ file.originalName }}
-                </a>
-              </div>
-              <div class="mt-2" *ngIf="getFiles('customer').length > 1">
-                <button class="btn btn-outline-primary btn-sm" (click)="downloadFilesBatch('customer')" [disabled]="uploading" title="一键下载所有询价文件">
-                  一键下载
-                </button>
-              </div>
             </div>
-          </div>
-          
-          <!-- 供应商报价文件操作 -->
-          <div *ngIf="hasFiles('supplier')" class="mb-3 file-operation">
-            <div class="alert alert-info">
-              <strong>已上传供应商报价文件:</strong>
-              <div *ngFor="let file of getFiles('supplier'); let i = index" class="file-link-container">
-                <a href="javascript:void(0)" class="file-link text-info" (click)="downloadFile('supplier', i)" 
-                   [class.disabled]="uploading"
-                   title="{{ file.originalName }}">
-                  {{ file.originalName }}
-                </a>
-                <button *ngIf="canDeleteFile('supplier')" class="btn btn-outline-danger btn-sm ms-2" (click)="deleteFile('supplier', i)" [disabled]="uploading" title="删除文件">
-                  删除
-                </button>
-              </div>
-              <div class="mt-2">
-                <button *ngIf="quote.status !== 'supplier_quoted'" class="btn btn-success btn-sm" (click)="confirmSupplierQuote()" [disabled]="uploading" title="确认报价">
-                  确认报价
-                </button>
-                <button *ngIf="getFiles('supplier').length > 1" class="btn btn-outline-info btn-sm ms-2" (click)="downloadFilesBatch('supplier')" [disabled]="uploading" title="一键下载所有报价文件">
-                  一键下载
-                </button>
-              </div>
+            <div *ngIf="getTempFilesByType('customer').length > 0" class="alert alert-warning small mt-2 mb-2">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              有 {{ getTempFilesByType('customer').length }} 个文件待上传，请点击"确认更新"按钮完成上传
             </div>
-          </div>
-          
-          <!-- 上传供应商报价文件 - 仅在处理中或被拒绝状态下显示 -->
-          <div *ngIf="canShowSupplierUpload()">
-            <!-- 上传中状态 -->
-            <div *ngIf="uploading" class="upload-status text-center">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">上传中...</span>
-              </div>
-              <div class="upload-text">
-                正在上传报价文件，请稍候...
-              </div>
-            </div>
-            
-            <!-- 上传供应商报价文件按钮 -->
-            <div *ngIf="!uploading" class="btn-group">
-              <label class="btn btn-outline-success">
-                {{ quote.status === 'rejected' ? '重新上传报价文件' : '上传报价文件' }}
-                <input type="file" accept=".xlsx,.xls" multiple (change)="onFilesSelected($event)" [disabled]="uploading" style="display: none;">
-              </label>
-              <button *ngIf="canReject() && quote.status !== 'rejected'" class="btn btn-outline-danger" (click)="rejectQuote()" [disabled]="uploading">
-                不予报价
+            <div *ngFor="let file of getFiles('customer'); let i = index" class="file-link-container">
+              <span *ngIf="file.isTemp" class="badge bg-warning me-2">待上传</span>
+              <a href="javascript:void(0)" class="file-link" 
+                 [ngClass]="file.isTemp ? 'text-warning' : 'text-primary'" 
+                 (click)="downloadFile('customer', i)" 
+                 [class.disabled]="uploading || file.isTemp"
+                 title="{{ file.originalName + (file.isTemp ? ' (待上传)' : '') }}">
+                {{ file.originalName }}
+              </a>
+              <button *ngIf="file.isTemp" class="btn btn-outline-warning btn-sm ms-2" (click)="removeFile('customer', i)" [disabled]="uploading" title="删除待上传文件">
+                删除
+              </button>
+              <button *ngIf="!file.isTemp && canDeleteFile('customer')" class="btn btn-outline-danger btn-sm ms-2" (click)="removeFile('customer', i)" [disabled]="uploading" title="删除文件">
+                撤回
               </button>
             </div>
-            
-            <!-- 提示信息 -->
-            <div *ngIf="!uploading" class="text-muted small mt-2">
-              支持选择多个Excel文件，每次选择后会追加到文件列表中
-            </div>
-            
-            <!-- 显示选择的文件列表 - 报价员和管理员在允许状态下可显示 -->
-            <div *ngIf="selectedFiles.length > 0 && !uploading && (canShowQuoterUpload())" class="mt-3">
-              <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <h6 class="mb-0">已选择的文件 ({{ selectedFiles.length }})</h6>
-                  <button class="btn btn-outline-secondary btn-sm" (click)="clearSelectedFiles()">清空</button>
-                </div>
-                <div class="card-body p-2">
-                  <ul class="list-unstyled mb-0">
-                    <li *ngFor="let file of selectedFiles; let i = index" class="mb-2 p-2 border rounded">
-                      <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                          <strong>{{ file.name }}</strong>
-                          <span class="text-muted ms-2">{{ formatFileSize(file.size) }}</span>
-                        </div>
-                        <button class="btn btn-outline-danger btn-sm" (click)="selectedFiles.splice(i, 1)">移除</button>
-                      </div>
-                    </li>
-                  </ul>
-                  <div class="mt-3">
-                    <button class="btn btn-primary" (click)="confirmUpload()" [disabled]="selectedFiles.length === 0">
-                      确认上传 ({{ selectedFiles.length }} 个文件)
-                    </button>
-                  </div>
-                </div>
-              </div>
+            <div class="mt-2">
+              <button *ngIf="getTempFilesByType('customer').length > 0" 
+                      class="btn btn-success btn-sm me-2" 
+                      (click)="confirmUpdateFiles('customer')" 
+                      [disabled]="uploading">
+                <i class="bi bi-upload me-1"></i>确认更新 ({{ getTempFilesByType('customer').length }})
+              </button>
+              <button *ngIf="getFiles('customer').length > 1 && getTempFilesByType('customer').length === 0" 
+                      class="btn btn-outline-primary btn-sm" 
+                      (click)="downloadFilesBatch('customer')" 
+                      [disabled]="uploading" 
+                      title="一键下载所有询价文件">
+                一键下载
+              </button>
             </div>
           </div>
         </div>
         
-        <!-- 报价员和管理员 -->
-        <div *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')" class="mt-3">
-
-          <div *ngIf="hasFiles('customer')" class="mb-3 file-operation">
-            <div class="alert alert-primary">
-              <strong>客户询价文件:</strong>
-              <div *ngFor="let file of getFiles('customer'); let i = index" class="file-link-container">
-                <a href="javascript:void(0)" class="file-link text-primary" (click)="downloadFile('customer', i)" 
-                   [class.disabled]="uploading"
-                   title="{{ file.originalName }}">
-                  {{ file.originalName }}
-                </a>
-              </div>
-              <div class="mt-2" *ngIf="getFiles('customer').length > 1">
-                <button class="btn btn-outline-primary btn-sm" (click)="downloadFilesBatch('customer')" [disabled]="uploading" title="一键下载所有询价文件">
-                  一键下载
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 供应商文件操作 (报价员和管理员可见) -->
-          <div *ngIf="hasFiles('supplier')" class="mb-3 file-operation">
-            <div class="alert alert-info">
+        <!-- 供应商报价文件 -->
+        <div *ngIf="hasFiles('supplier')" class="mb-3 file-operation">
+          <div class="alert" [ngClass]="getTempFilesByType('supplier').length > 0 ? 'alert-warning' : 'alert-info'">
+            <div class="d-flex justify-content-between align-items-center">
               <strong>供应商报价文件:</strong>
-              <div *ngFor="let file of getFiles('supplier'); let i = index" class="file-link-container">
-                <a href="javascript:void(0)" class="file-link text-info" (click)="downloadFile('supplier', i)" 
-                   [class.disabled]="uploading"
-                   title="{{ file.originalName }}">
-                  {{ file.originalName }}
-                </a>
-                <button *ngIf="canDeleteFile('supplier')" class="btn btn-outline-danger btn-sm ms-2" (click)="deleteFile('supplier', i)" [disabled]="uploading" title="删除文件">
-                  删除
-                </button>
-              </div>
-              <div class="mt-2" *ngIf="getFiles('supplier').length > 1">
-                <button class="btn btn-outline-info btn-sm" (click)="downloadFilesBatch('supplier')" [disabled]="uploading" title="一键下载所有供应商报价文件">
-                  一键下载
-                </button>
-              </div>
             </div>
-          </div>
-          
-          <!-- 最终报价文件操作 -->
-          <div *ngIf="hasFiles('quoter')" class="mb-3 file-operation">
-            <div class="alert alert-success">
-              <strong>已上传最终报价文件:</strong>
-              <div *ngFor="let file of getFiles('quoter'); let i = index" class="file-link-container">
-                <a href="javascript:void(0)" class="file-link text-success" (click)="downloadFile('quoter', i)" 
-                   [class.disabled]="uploading"
-                   title="{{ file.originalName }}">
-                  {{ file.originalName }}
-                </a>
-                <button *ngIf="canDeleteFile('quoter')" class="btn btn-outline-danger btn-sm ms-2" (click)="deleteFile('quoter', i)" [disabled]="uploading" title="删除文件">
-                  删除
-                </button>
-              </div>
-              <div class="mt-2">
-                <button *ngIf="quote.status !== 'quoted'" class="btn btn-primary btn-sm" (click)="confirmFinalQuote()" [disabled]="uploading" title="确认最终报价">
-                  确认最终报价
-                </button>
-                <button *ngIf="getFiles('quoter').length > 1" class="btn btn-outline-success btn-sm ms-2" (click)="downloadFilesBatch('quoter')" [disabled]="uploading" title="一键下载所有最终报价文件">
-                  一键下载
-                </button>
-              </div>
+            <div *ngIf="getTempFilesByType('supplier').length > 0" class="alert alert-warning small mt-2 mb-2">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              有 {{ getTempFilesByType('supplier').length }} 个文件待上传，请点击"确认更新"按钮完成上传
             </div>
-          </div>
-          
-          <!-- 上传最终报价文件 -->
-          <div>
-            <!-- 上传中状态 -->
-            <div *ngIf="uploading" class="upload-status text-center">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">上传中...</span>
-              </div>
-              <div class="upload-text">
-                正在上传最终报价文件，请稍候...
-              </div>
-            </div>
-            
-            <!-- 上传最终报价文件按钮 -->
-            <div *ngIf="!uploading" class="btn-group">
-              <label class="btn btn-outline-success">
-                上传最终报价文件
-                <input type="file" accept=".xlsx,.xls" multiple (change)="onFilesSelected($event)" [disabled]="uploading" style="display: none;">
-              </label>
-              <button *ngIf="canReject()" class="btn btn-outline-danger" (click)="rejectQuote()" [disabled]="uploading">
-                不予报价
+            <div *ngFor="let file of getFiles('supplier'); let i = index" class="file-link-container">
+              <span *ngIf="file.isTemp" class="badge bg-warning me-2">待上传</span>
+              <a href="javascript:void(0)" class="file-link" 
+                 [ngClass]="file.isTemp ? 'text-warning' : 'text-info'" 
+                 (click)="downloadFile('supplier', i)" 
+                 [class.disabled]="uploading || file.isTemp"
+                 title="{{ file.originalName + (file.isTemp ? ' (待上传)' : '') }}">
+                {{ file.originalName }}
+              </a>
+              <button *ngIf="file.isTemp" class="btn btn-outline-warning btn-sm ms-2" (click)="removeFile('supplier', i)" [disabled]="uploading" title="删除待上传文件">
+                删除
+              </button>
+              <button *ngIf="!file.isTemp && canDeleteFile('supplier')" class="btn btn-outline-danger btn-sm ms-2" (click)="removeFile('supplier', i)" [disabled]="uploading" title="删除文件">
+                撤回
               </button>
             </div>
-            
-            <!-- 提示信息 -->
-            <div *ngIf="!uploading" class="text-muted small mt-2">
-              支持选择多个Excel文件，每次选择后会追加到文件列表中
-            </div>
-            
-            <!-- 显示选择的文件列表 - 报价员和管理员在允许状态下可显示 -->
-            <div *ngIf="selectedFiles.length > 0 && !uploading && (canShowQuoterUpload())" class="mt-3">
-              <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <h6 class="mb-0">已选择的文件 ({{ selectedFiles.length }})</h6>
-                  <button class="btn btn-outline-secondary btn-sm" (click)="clearSelectedFiles()">清空</button>
-                </div>
-                <div class="card-body p-2">
-                  <ul class="list-unstyled mb-0">
-                    <li *ngFor="let file of selectedFiles; let i = index" class="mb-2 p-2 border rounded">
-                      <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                          <strong>{{ file.name }}</strong>
-                          <span class="text-muted ms-2">{{ formatFileSize(file.size) }}</span>
-                        </div>
-                        <button class="btn btn-outline-danger btn-sm" (click)="selectedFiles.splice(i, 1)">移除</button>
-                      </div>
-                    </li>
-                  </ul>
-                  <div class="mt-3">
-                    <button class="btn btn-primary" (click)="confirmUpload()" [disabled]="selectedFiles.length === 0">
-                      确认上传 ({{ selectedFiles.length }} 个文件)
-                    </button>
-                  </div>
-                </div>
-              </div>
+            <div class="mt-2">
+              <button *ngIf="quote.status === 'in_progress' && authService.hasRole('supplier')" 
+                      class="btn btn-success btn-sm me-2" 
+                      (click)="confirmSupplierQuote()" 
+                      [disabled]="uploading" 
+                      title="确认报价">
+                确认报价
+              </button>
+              <button *ngIf="getTempFilesByType('supplier').length > 0" 
+                      class="btn btn-success btn-sm me-2" 
+                      (click)="confirmUpdateFiles('supplier')" 
+                      [disabled]="uploading">
+                <i class="bi bi-upload me-1"></i>确认更新 ({{ getTempFilesByType('supplier').length }})
+              </button>
+              <button *ngIf="getFiles('supplier').length > 1 && getTempFilesByType('supplier').length === 0" 
+                      class="btn btn-outline-info btn-sm" 
+                      (click)="downloadFilesBatch('supplier')" 
+                      [disabled]="uploading" 
+                      title="一键下载所有报价文件">
+                一键下载
+              </button>
             </div>
           </div>
         </div>
-      </div>
-      
-      <!-- 分配报价员 (仅管理员可见) -->
-      <div *ngIf="quote && authService.hasRole('admin') && quoters.length > 0" class="mt-4">
-        <h5>分配报价员</h5>
-        <div class="row">
-          <div class="col-md-6">
-            <select class="form-select" #quoterSelect>
-              <option value="">选择报价员</option>
-              <option *ngFor="let quoter of quoters" [value]="quoter._id">
-                {{ quoter.name }} ({{ quoter.email }})
-              </option>
-            </select>
+        
+        <!-- 最终报价文件 -->
+        <div *ngIf="hasFiles('quoter')" class="mb-3 file-operation">
+          <div class="alert" [ngClass]="getTempFilesByType('quoter').length > 0 ? 'alert-warning' : 'alert-success'">
+            <div class="d-flex justify-content-between align-items-center">
+              <strong>最终报价文件:</strong>
+            </div>
+            <div *ngIf="getTempFilesByType('quoter').length > 0" class="alert alert-warning small mt-2 mb-2">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              有 {{ getTempFilesByType('quoter').length }} 个文件待上传，请点击"确认更新"按钮完成上传
+            </div>
+            <div *ngFor="let file of getFiles('quoter'); let i = index" class="file-link-container">
+              <span *ngIf="file.isTemp" class="badge bg-warning me-2">待上传</span>
+              <a href="javascript:void(0)" class="file-link" 
+                 [ngClass]="file.isTemp ? 'text-warning' : 'text-success'" 
+                 (click)="downloadFile('quoter', i)" 
+                 [class.disabled]="uploading || file.isTemp"
+                 title="{{ file.originalName + (file.isTemp ? ' (待上传)' : '') }}">
+                {{ file.originalName }}
+              </a>
+              <button *ngIf="file.isTemp" class="btn btn-outline-warning btn-sm ms-2" (click)="removeFile('quoter', i)" [disabled]="uploading" title="删除待上传文件">
+                删除
+              </button>
+              <button *ngIf="!file.isTemp && canDeleteFile('quoter')" class="btn btn-outline-danger btn-sm ms-2" (click)="removeFile('quoter', i)" [disabled]="uploading" title="删除文件">
+                撤回
+              </button>
+            </div>
+            <div class="mt-2">
+              <button *ngIf="quote.status !== 'quoted' && authService.hasRole('quoter')" 
+                      class="btn btn-primary btn-sm me-2" 
+                      (click)="confirmFinalQuote()" 
+                      [disabled]="uploading" 
+                      title="确认最终报价">
+                确认最终报价
+              </button>
+              <button *ngIf="getFiles('quoter').length > 1 && getTempFilesByType('quoter').length === 0" 
+                      class="btn btn-outline-success btn-sm" 
+                      (click)="downloadFilesBatch('quoter')" 
+                      [disabled]="uploading" 
+                      title="一键下载所有最终报价文件">
+                一键下载
+              </button>
+            </div>
           </div>
-          <div class="col-md-6">
-            <button class="btn btn-primary" (click)="assignToQuoter(quoterSelect.value)" [disabled]="!quoterSelect.value || uploading">
-              分配
+        </div>
+        
+        <!-- 文件上传区域 -->
+        <div class="mt-4" *ngIf="canShowUploadButton()">
+          <h5>上传文件</h5>
+          
+          <!-- 上传中状态 -->
+          <div *ngIf="uploading" class="upload-status text-center">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">上传中...</span>
+            </div>
+            <div class="upload-text">
+              正在上传文件，请稍候...
+            </div>
+          </div>
+          
+          <!-- 上传文件按钮 -->
+          <div *ngIf="!uploading" class="btn-group">
+            <label class="btn btn-outline-success">
+              选择文件
+              <input type="file" accept=".xlsx,.xls" multiple (change)="onFilesSelected($event)" [disabled]="uploading" style="display: none;">
+            </label>
+            <button *ngIf="canReject()" class="btn btn-outline-danger" (click)="rejectQuote()" [disabled]="uploading">
+              不予报价
             </button>
+          </div>
+          
+          <!-- 提示信息 -->
+          <div *ngIf="!uploading" class="text-muted small mt-2">
+            支持选择多个Excel文件，选择后会直接显示在文件列表中，请点击"确认更新"按钮完成上传
           </div>
         </div>
       </div>

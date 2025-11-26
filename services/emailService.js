@@ -1096,7 +1096,6 @@ const sendPasswordReset = async (email, resetToken) => {
 const sendQuoterAssignmentNotification = async (quoterEmail, quote) => {
   try {
     const startTime = Date.now();
-    
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: quoterEmail,

@@ -59,7 +59,7 @@ export class QuoteCreateComponent {
 
   onSubmit() {
     if (!this.selectedFiles || this.selectedFiles.length === 0) {
-      this.error = '请选择Excel文件';
+      this.error = '请上传报价文件';
       return;
     }
 

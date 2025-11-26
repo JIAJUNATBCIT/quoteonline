@@ -30,6 +30,7 @@ export interface Quote {
   price?: number;
   currency?: string;
   validUntil?: Date;
+  urgent: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

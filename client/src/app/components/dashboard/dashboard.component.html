@@ -2,9 +2,9 @@
   <h1 class="mb-4">仪表板</h1>
   
   <!-- 统计卡片 -->
-  <div class="row mb-4">
-    <div class="col-md-3" *ngIf="authService.hasRole('customer')">
-      <div class="card text-white bg-primary">
+  <div class="row mb-4 stats-row g-2 g-md-3">
+    <div class="col" *ngIf="authService.hasRole('customer')">
+      <div class="card text-white bg-primary h-100">
         <div class="card-body">
           <h5 class="card-title">我的询价单</h5>
           <h2 class="card-text">{{ quotes.length }}</h2>
@@ -12,8 +12,8 @@
       </div>
     </div>
     
-    <div class="col-md-3" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
-      <div class="card text-white bg-warning">
+    <div class="col" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
+      <div class="card text-white bg-warning h-100">
         <div class="card-body">
           <h5 class="card-title">待处理</h5>
           <h2 class="card-text">{{ getQuoteCountByStatus('pending') }}</h2>
@@ -21,8 +21,8 @@
       </div>
     </div>
     
-    <div class="col-md-3" *ngIf="authService.hasRole('supplier')">
-      <div class="card text-white bg-info">
+    <div class="col" *ngIf="authService.hasRole('supplier')">
+      <div class="card text-white bg-info h-100">
         <div class="card-body">
           <h5 class="card-title">待处理</h5>
           <h2 class="card-text">{{ getQuoteCountByStatus('pending') }}</h2>
@@ -30,8 +30,8 @@
       </div>
     </div>
     
-    <div class="col-md-3" *ngIf="authService.hasRole('supplier')">
-      <div class="card text-white bg-danger">
+    <div class="col" *ngIf="authService.hasRole('supplier')">
+      <div class="card text-white bg-danger h-100">
         <div class="card-body">
           <h5 class="card-title">不报价</h5>
           <h2 class="card-text">{{ getQuoteCountByStatus('rejected') }}</h2>
@@ -39,8 +39,8 @@
       </div>
     </div>
     
-    <div class="col-md-3" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
-      <div class="card text-white bg-info">
+    <div class="col" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
+      <div class="card text-white bg-info h-100">
         <div class="card-body">
           <h5 class="card-title">供应商已报价</h5>
           <h2 class="card-text">{{ getQuoteCountByStatus('supplier_quoted') }}</h2>
@@ -48,8 +48,8 @@
       </div>
     </div>
     
-    <div class="col-md-3" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
-      <div class="card text-white bg-secondary">
+    <div class="col" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
+      <div class="card text-white bg-secondary h-100">
         <div class="card-body">
           <h5 class="card-title">处理中</h5>
           <h2 class="card-text">{{ getQuoteCountByStatus('in_progress') }}</h2>
@@ -57,8 +57,8 @@
       </div>
     </div>
     
-    <div class="col-md-3" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
-      <div class="card text-white bg-danger">
+    <div class="col" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
+      <div class="card text-white bg-danger h-100">
         <div class="card-body">
           <h5 class="card-title">不报价</h5>
           <h2 class="card-text">{{ getQuoteCountByStatus('rejected') }}</h2>
@@ -66,8 +66,8 @@
       </div>
     </div>
     
-    <div class="col-md-3">
-      <div class="card text-white bg-success">
+    <div class="col">
+      <div class="card text-white bg-success h-100">
         <div class="card-body">
           <h5 class="card-title">已报价</h5>
           <h2 class="card-text">{{ getQuoteCountByStatus('quoted') }}</h2>
@@ -182,8 +182,9 @@
                   <strong class="text-primary">{{ quote.quoteNumber }}</strong>
                 </td>
                 <td>
-                  <strong>{{ quote.title }}</strong>
-                  <div class="text-muted small">{{ quote.description }}</div>
+                  <strong [class.text-danger]="quote.urgent" class="quote-title">{{ quote.title }}</strong>
+                  <span *ngIf="quote.urgent" class="badge bg-danger ms-2 urgent-badge">加急</span>
+                  <div class="text-muted small quote-description">{{ quote.description }}</div>
                 </td>
                 <td *ngIf="authService.hasRole('customer') || authService.hasRole('quoter') || authService.hasRole('admin')">{{ quote.customer.name }}</td>
                 <td *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">{{ quote.quoter?.name || '-' }}</td>
@@ -199,22 +200,22 @@
                     <button 
                       *ngIf="quote.customerFiles && quote.customerFiles.length > 0" 
                       class="btn btn-outline-secondary"
-                      (click)="downloadFile(quote._id, 'customer')"
+                      (click)="downloadFilesBatch(quote._id, 'customer')"
                       title="下载询价文件">
                       询价
                     </button>
                     <button 
                       *ngIf="quote.supplierFiles && quote.supplierFiles.length > 0" 
                       class="btn btn-outline-info"
-                      (click)="downloadFile(quote._id, 'supplier')"
+                      (click)="downloadFilesBatch(quote._id, 'supplier')"
                       title="下载供应商报价文件">
-                      供应商
+                      FOB
                     </button>
                     <button 
                       *ngIf="quote.quoterFiles && quote.quoterFiles.length > 0" 
                       class="btn btn-outline-success"
-                      (click)="downloadFile(quote._id, 'quoter')"
-                      title="下载报价文件">
+                      (click)="downloadFilesBatch(quote._id, 'quoter')"
+                      title="下载最终报价文件">
                       报价
                     </button>
                     <button 
