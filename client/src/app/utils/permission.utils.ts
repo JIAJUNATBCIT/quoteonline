@@ -16,10 +16,12 @@ export class PermissionUtils {
     
     switch (user.role) {
       case 'customer':
-        return quote.customer._id === user.id || quote.customer === user.id;
+        const userId = user._id;
+        return quote.customer._id === userId || quote.customer === userId;
       case 'supplier':
-        return quote.supplier?._id === user.id || 
-               quote.supplier === user.id || 
+        const supplierUserId = user._id;
+        return quote.supplier?._id === supplierUserId || 
+               quote.supplier === supplierUserId ||
                ['pending', 'rejected', 'in_progress'].includes(quote.status);
       case 'quoter':
       case 'admin':
@@ -40,12 +42,14 @@ export class PermissionUtils {
     
     switch (user.role) {
       case 'customer':
-        return quote.customer._id === user.id || quote.customer === user.id;
+        const userId = user._id;
+        return quote.customer._id === userId || quote.customer === userId;
       case 'supplier':
+        const supplierUserId = user._id;
         return (quote.status === 'in_progress' && quote.supplier && 
-                (quote.supplier._id === user.id || quote.supplier === user.id)) ||
+                (quote.supplier._id === supplierUserId || quote.supplier === supplierUserId)) ||
                (quote.status === 'rejected' && quote.supplier && 
-                (quote.supplier._id === user.id || quote.supplier === user.id));
+                (quote.supplier._id === supplierUserId || quote.supplier === supplierUserId));
       case 'quoter':
         return ['pending', 'supplier_quoted', 'in_progress'].includes(quote.status);
       case 'admin':
@@ -66,7 +70,8 @@ export class PermissionUtils {
     
     switch (user.role) {
       case 'customer':
-        return quote.customer._id === user.id || quote.customer === user.id;
+        const userId = user._id;
+        return quote.customer._id === userId || quote.customer === userId;
       case 'admin':
         return true;
       default:
@@ -87,7 +92,8 @@ export class PermissionUtils {
       case 'customer':
         return false;
       case 'supplier':
-        return quote.supplier && (quote.supplier._id === user.id || quote.supplier === user.id);
+        const rejectUserId = user._id;
+        return quote.supplier && (quote.supplier._id === rejectUserId || quote.supplier === rejectUserId);
       case 'quoter':
       case 'admin':
         return true;
@@ -138,13 +144,15 @@ export class PermissionUtils {
     if (!user) return false;
     switch (user.role) {
       case 'customer':
+        const fileUserId = user._id;
         return fileType === 'customer' && 
-               (quote.customer._id === user.id || quote.customer === user.id) &&
+               (quote.customer._id === fileUserId || quote.customer === fileUserId) &&
                quote.status === 'pending';
       case 'supplier':
         // 供应商可以在最终报价前删除自己上传的文件
+        const fileSupplierUserId = user._id;
         return fileType === 'supplier' && 
-               quote.supplier && (quote.supplier._id === user.id || quote.supplier === user.id) &&
+               quote.supplier && (quote.supplier._id === fileSupplierUserId || quote.supplier === fileSupplierUserId) &&
                ['in_progress', 'rejected', 'supplier_quoted'].includes(quote.status);
       case 'quoter':
         return fileType === 'quoter' && ['quoter', 'admin'].includes(user.role);

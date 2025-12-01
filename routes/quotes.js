@@ -88,12 +88,13 @@ function fixFileName(name) {
 // Generate unique quote number
 async function generateQuoteNumber() {
   const today = new Date();
-  const dateStr = today.getFullYear() + 
-                  String(today.getMonth() + 1).padStart(2, '0') + 
-                  String(today.getDate()).padStart(2, '0');
+  const year = String(today.getFullYear()).slice(-2); // 取年份后两位
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const dateStr = year + month + day; // YYMMDD格式
   
   // Find the highest sequence number for today (使用索引优化查询)
-  const todayPrefix = `Q-${dateStr}-`;
+  const todayPrefix = `Q${dateStr}`;
   const lastQuote = await Quote.findOne({ 
     quoteNumber: { $regex: `^${todayPrefix}` } 
   }).sort({ quoteNumber: -1 })
@@ -102,11 +103,17 @@ async function generateQuoteNumber() {
   
   let sequence = 1;
   if (lastQuote) {
-    const lastSequence = parseInt(lastQuote.quoteNumber.split('-')[2]);
+    // 从询价号中提取后两位数字
+    const lastSequence = parseInt(lastQuote.quoteNumber.slice(-2));
     sequence = lastSequence + 1;
   }
   
-  return `${todayPrefix}${String(sequence).padStart(3, '0')}`;
+  // 确保序号是2位数字，如果超过99则重置为01
+  if (sequence > 99) {
+    sequence = 1;
+  }
+  
+  return `${todayPrefix}${String(sequence).padStart(2, '0')}`;
 }
 
 
@@ -118,7 +125,7 @@ router.post('/', auth, authorize('customer'), upload.fields([
   const startTime = Date.now();
   
   try {
-    const { title, description, customerMessage } = req.body;
+    const { title, description } = req.body;
     
     // 获取上传的文件
     const allFiles = req.files?.customerFiles || [];
@@ -159,7 +166,6 @@ router.post('/', auth, authorize('customer'), upload.fields([
       customer: req.user.userId,
       title: quoteTitle.trim(),
       description: description?.trim() || '',
-      customerMessage: customerMessage?.trim() || '',
       customerFiles: customerFiles
     });
 
@@ -186,7 +192,6 @@ router.post('/', auth, authorize('customer'), upload.fields([
           quoteNumber: quote.quoteNumber,
           title: quote.title,
           description: quote.description,
-          customerMessage: quote.customerMessage,
           createdAt: quote.createdAt,
           customerFiles: quote.customerFiles
           // 注意：不包含 customer 字段，保护客户隐私
@@ -247,12 +252,7 @@ router.get('/', auth, async (req, res) => {
         populates = [{ path: 'customer', select: 'name email company' }];
         break;
       case 'supplier':
-        query = { 
-          $or: [
-            { supplier: req.user.userId },
-            { status: 'in_progress' } // 显示处理中的询价单（供应商可以看到但可能无法操作）
-          ]
-        };
+        query = { supplier: req.user.userId }; // 只显示分配给自己的询价单
         populates = [
           { path: 'customer', select: 'name email company' },
           { path: 'supplier', select: 'name email company' }
@@ -305,7 +305,7 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: '权限不足' });
     }
 
-    // 供应商权限检查：必须是当前分配的供应商才能访问
+    // 供应商权限检查：只能访问分配给自己的询价单
     if (req.user.role === 'supplier') {
       if (!quote.supplier || quote.supplier._id.toString() !== req.user.userId) {
         return res.status(403).json({ message: '权限不足：您不是当前分配的供应商' });
@@ -733,7 +733,6 @@ router.patch('/:id/assign-supplier', auth, async (req, res) => {
           quoteNumber: updatedQuote.quoteNumber,
           title: updatedQuote.title,
           description: updatedQuote.description,
-          customerMessage: updatedQuote.customerMessage,
           createdAt: updatedQuote.createdAt,
           customerFiles: updatedQuote.customerFiles
           // 注意：不包含 customer 字段，保护客户隐私
@@ -916,15 +915,15 @@ router.get('/:id/download/:fileType', auth, async (req, res) => {
       return res.status(403).json({ message: '权限不足' });
     }
 
-    // 供应商权限检查：必须是当前分配的供应商才能下载文件
+    // 供应商权限检查：只能下载分配给自己的询价单的文件
     if (req.user.role === 'supplier') {
-      if (!quote.supplier || quote.supplier._id?.toString() !== req.user.userId) {
+      if (!quote.supplier || quote.supplier._id.toString() !== req.user.userId) {
         return res.status(403).json({ message: '权限不足：您不是当前分配的供应商' });
       }
       
       // 只有在特定状态下才能下载客户文件
       if (req.params.fileType.startsWith('customer') && 
-          !['pending', 'in_progress', 'rejected', 'supplier_quoted', 'quoted'].includes(quote.status)) {
+          !['in_progress', 'rejected', 'supplier_quoted', 'quoted'].includes(quote.status)) {
         return res.status(403).json({ message: '权限不足：当前状态下不允许下载客户文件' });
       }
     }
@@ -1030,10 +1029,10 @@ router.get('/:id/download/:fileType/batch', auth, async (req, res) => {
         files = quote.customerFiles || [];
         zipFileName = `${quote.quoteNumber}_customer_files.zip`;
         
-        // 客户可以下载自己的文件，供应商必须是当前分配的供应商才能下载
+        // 客户可以下载自己的文件，供应商只能下载分配给自己的询价单
         if (req.user.role !== 'customer') {
           if (req.user.role === 'supplier') {
-            if (!quote.supplier || quote.supplier._id?.toString() !== req.user.userId) {
+            if (!quote.supplier || quote.supplier._id.toString() !== req.user.userId) {
               return res.status(403).json({ message: '权限不足：您不是当前分配的供应商' });
             }
           } else if (req.user.role !== 'quoter' && req.user.role !== 'admin') {

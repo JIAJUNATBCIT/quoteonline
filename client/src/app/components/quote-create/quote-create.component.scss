@@ -1,4 +1,10 @@
 /* Quote Create Component Styles */
+
+// Quote create content spacing to avoid navbar overlap
+.quote-create-content {
+  margin-top: 80px; // Height of fixed navbar + some spacing
+}
+
 .quote-create-container {
   max-width: 800px;
   margin: 0 auto;

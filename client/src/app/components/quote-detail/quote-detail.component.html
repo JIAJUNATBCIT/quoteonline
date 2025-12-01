@@ -1,4 +1,4 @@
-<div class="container mt-4" *ngIf="!loading">
+<div class="container mt-4 quote-detail-content" *ngIf="!loading">
   <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h4 class="mb-0">询价单详情</h4>
@@ -84,7 +84,7 @@
                      class="form-check-input" 
                      id="urgentCheck"
                      [(ngModel)]="quote.urgent"
-                     [disabled]="!canEdit() || uploading"
+                     [disabled]="quote.status === 'quoted'"
                      (change)="updateUrgentStatus()">
               <label class="form-check-label fw-bold" for="urgentCheck">
                 加急
@@ -226,7 +226,7 @@
                       title="确认报价">
                 确认报价
               </button>
-              <button *ngIf="getTempFilesByType('supplier').length > 0" 
+              <button *ngIf="quote.status === 'supplier_quoted' && getTempFilesByType('supplier').length > 0" 
                       class="btn btn-success btn-sm me-2" 
                       (click)="confirmUpdateFiles('supplier')" 
                       [disabled]="uploading">
@@ -276,6 +276,12 @@
                       [disabled]="uploading" 
                       title="确认最终报价">
                 确认最终报价
+              </button>
+              <button *ngIf="getTempFilesByType('quoter').length > 0 && quote.status === 'quoted'"
+                      class="btn btn-success btn-sm me-2" 
+                      (click)="confirmUpdateFiles('quoter')" 
+                      [disabled]="uploading">
+                <i class="bi bi-upload me-1"></i>确认更新 ({{ getTempFilesByType('quoter').length }})
               </button>
               <button *ngIf="getFiles('quoter').length > 1 && getTempFilesByType('quoter').length === 0" 
                       class="btn btn-outline-success btn-sm" 

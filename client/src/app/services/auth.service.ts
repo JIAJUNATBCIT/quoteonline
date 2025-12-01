@@ -30,14 +30,9 @@ export class AuthService {
       const user = JSON.parse(userStr);
       this.currentUserSubject.next(user);
       
-      // 检查 token 是否过期，如果过期则尝试刷新
+      // 检查 token 是否过期，如果过期则直接登出，避免循环依赖
       if (this.tokenService.isTokenExpired()) {
-        this.tokenService.refreshToken().pipe(
-          catchError(() => {
-            this.logout();
-            return of(null);
-          })
-        ).subscribe();
+        this.logout();
       }
     }
   }

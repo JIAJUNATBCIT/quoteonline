@@ -1,4 +1,10 @@
 // User List Component Styles
+
+// User list content spacing to avoid navbar overlap
+.user-list-content {
+  margin-top: 80px; // Height of fixed navbar + some spacing
+}
+
 .user-list-container {
   max-width: 1400px;
   margin: 0 auto;

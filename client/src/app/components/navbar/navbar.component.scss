@@ -1,14 +1,25 @@
-/* Navbar Component Styles */
+/* Navbar Component Styles - Enhanced Modern Design */
+
+// Gradient background
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
 .navbar {
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   padding: 0.75rem 1rem;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1030;
-  border-bottom: 3px solid #3498db;
+  border-bottom: 3px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .navbar-brand {
@@ -210,30 +221,45 @@
   }
 }
 
-// Role badge styles
+// Enhanced Role badge styles
 .role-badge {
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 35px;
+  height: 35px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.1);
+  }
+  
+  i {
+    font-size: 0.875rem;
+  }
   
   &.role-customer {
-    background-color: #28a745;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     color: white;
   }
   
   &.role-quoter {
-    background-color: #17a2b8;
+    background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%);
     color: white;
   }
   
   &.role-admin {
-    background-color: #dc3545;
+    background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
     color: white;
   }
   
   &.role-supplier {
-    background-color: #fd7e14;
+    background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);
     color: white;
   }
 }

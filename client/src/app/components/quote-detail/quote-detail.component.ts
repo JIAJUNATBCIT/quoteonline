@@ -283,7 +283,7 @@ export class QuoteDetailComponent implements OnInit {
       return;
     }
     
-    if ((user?.role === 'quoter' || user?.role === 'admin') && !['pending', 'supplier_quoted', 'in_progress'].includes(this.quote?.status || '')) {
+    if ((user?.role === 'quoter' || user?.role === 'admin') && !['pending', 'supplier_quoted', 'in_progress','quoted'].includes(this.quote?.status || '')) {
       alert('询价单当前状态不允许上传最终报价文件');
       event.target.value = '';
       return;
@@ -537,7 +537,7 @@ export class QuoteDetailComponent implements OnInit {
       }
       this.uploadSupplierFiles(tempFiles.map(tf => tf.file!).filter(f => f !== undefined));
     } else if ((user?.role === 'quoter' || user?.role === 'admin') && fileType === 'quoter') {
-      if (!['pending', 'supplier_quoted', 'in_progress'].includes(this.quote?.status || '')) {
+      if (!['pending', 'supplier_quoted', 'in_progress', 'quoted'].includes(this.quote?.status || '')) {
         alert('询价单当前状态不允许上传最终报价文件');
         return;
       }
@@ -944,6 +944,7 @@ export class QuoteDetailComponent implements OnInit {
       case 'supplier':
         return ['in_progress', 'rejected', 'supplier_quoted'].includes(this.quote.status);
       case 'quoter':
+        return ['pending', 'supplier_quoted', 'in_progress','quoted'].includes(this.quote.status);
       case 'admin':
         return ['pending', 'supplier_quoted', 'in_progress'].includes(this.quote.status);
       default:

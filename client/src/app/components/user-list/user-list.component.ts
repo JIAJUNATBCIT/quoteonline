@@ -10,10 +10,25 @@ export class UserListComponent implements OnInit {
   users: User[] = [];
   loading = true;
   error = '';
+  currentUserId: string | null = null;
 
   constructor(private userService: UserService) { }
 
   ngOnInit() {
+    // 从localStorage获取用户数据
+    const userStr = localStorage.getItem('user');
+    
+    if (userStr) {
+      try {
+        const parsedUser = JSON.parse(userStr);
+        this.currentUserId = parsedUser._id || parsedUser.id || null;
+      } catch (e) {
+        this.currentUserId = null;
+      }
+    } else {
+      this.currentUserId = null;
+    }
+    
     this.loadUsers();
   }
 
@@ -24,7 +39,7 @@ export class UserListComponent implements OnInit {
         this.users = users;
         this.loading = false;
       },
-      error: (error) => {
+      error: () => {
         this.error = '加载用户列表失败';
         this.loading = false;
       }
@@ -41,7 +56,18 @@ export class UserListComponent implements OnInit {
     return roleNames[role] || role;
   }
 
+  // 检查是否可以修改用户角色（不能修改自己的角色）
+  canModifyUserRole(user: User): boolean {
+    return this.currentUserId !== user._id;
+  }
+
   updateUserRole(userId: string, newRole: string) {
+    // 安全检查：不能修改自己的角色
+    if (this.currentUserId === userId) {
+      alert('不能修改自己的角色');
+      return;
+    }
+    
     this.userService.updateUserRole(userId, newRole).subscribe({
       next: () => {
         this.loadUsers();

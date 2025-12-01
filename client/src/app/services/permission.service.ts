@@ -42,7 +42,7 @@ export class PermissionService {
   canUploadSupplierFile(quote: Quote, user: User): boolean {
     return user?.role === 'supplier' && 
            ['in_progress', 'rejected', 'supplier_quoted'].includes(quote.status) &&
-           quote.supplier && (quote.supplier._id === user.id || quote.supplier === user.id);
+           quote.supplier && (quote.supplier._id === user._id || quote.supplier === user._id);
   }
 
   // 检查用户是否可以上传最终报价文件
@@ -57,21 +57,23 @@ export class PermissionService {
     
     switch (user.role) {
       case 'customer':
+        const downloadUserId = user._id;
         if (fileType === 'customer') {
-          return quote.customer._id === user.id || quote.customer === user.id;
+          return quote.customer._id === downloadUserId || quote.customer === downloadUserId;
         }
         if (fileType === 'quoter') {
           return quote.status === 'quoted' && 
-                 (quote.customer._id === user.id || quote.customer === user.id);
+                 (quote.customer._id === downloadUserId || quote.customer === downloadUserId);
         }
         return false; // 客户永远不能下载供应商文件
       case 'supplier':
         // 供应商可以下载：1. 待处理的询价单的客户文件 2. 自己已报价的询价单的客户文件 3. 自己上传的供应商文件
+        const downloadSupplierUserId = user._id;
         return (fileType === 'customer' && 
                 (quote.status === 'pending' || 
-                 (quote.supplier && (quote.supplier._id === user.id || quote.supplier === user.id)))) ||
+                 (quote.supplier && (quote.supplier._id === downloadSupplierUserId || quote.supplier === downloadSupplierUserId)))) ||
                (fileType === 'supplier' && 
-                quote.supplier && (quote.supplier._id === user.id || quote.supplier === user.id));
+                quote.supplier && (quote.supplier._id === downloadSupplierUserId || quote.supplier === downloadSupplierUserId));
       case 'quoter':
       case 'admin':
         return true; // 报价员和管理员可以下载所有文件

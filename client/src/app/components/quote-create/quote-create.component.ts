@@ -21,8 +21,7 @@ export class QuoteCreateComponent {
   ) {
     this.quoteForm = this.formBuilder.group({
       title: [''], // 不设为必填，允许使用文件名作为默认值
-      description: [''],
-      customerMessage: ['']
+      description: ['']
     });
   }
 
@@ -75,7 +74,6 @@ export class QuoteCreateComponent {
     const formData = new FormData();
     formData.append('title', title);
     formData.append('description', this.quoteForm.get('description')?.value || '');
-    formData.append('customerMessage', this.quoteForm.get('customerMessage')?.value || '');
     
     // 添加多个文件，使用customerFiles字段名
     this.selectedFiles.forEach(file => {

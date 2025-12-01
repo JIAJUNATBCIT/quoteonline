@@ -24,7 +24,6 @@ export interface Quote {
   supplierFiles?: QuoteFile[];
 
   status: 'pending' | 'supplier_quoted' | 'in_progress' | 'quoted' | 'cancelled' | 'rejected';
-  customerMessage?: string;
   quoterMessage?: string;
   rejectReason?: string;
   price?: number;

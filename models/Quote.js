@@ -61,9 +61,7 @@ const QuoteSchema = new mongoose.Schema({
     enum: ['pending', 'supplier_quoted', 'in_progress', 'quoted', 'cancelled', 'rejected'],
     default: 'pending'
   },
-  customerMessage: {
-    type: String
-  },
+
   quoterMessage: {
     type: String
   },

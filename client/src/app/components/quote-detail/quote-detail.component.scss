@@ -1,7 +1,13 @@
 // Quote Detail Component Styles
 
+// Quote detail content spacing to avoid navbar overlap
+.quote-detail-content {
+  margin-top: 100px; // Height of fixed navbar + more spacing for better visual separation
+}
+
 // 进度条相关样式
 .progress-container {
+  padding-top: 2%;
   .progress {
     border-radius: 8px;
     overflow: hidden;

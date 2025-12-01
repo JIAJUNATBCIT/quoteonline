@@ -16,8 +16,8 @@ export class AuthInterceptor implements HttpInterceptor {
   ) {}
 
   intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    // 跳过刷新 token 请求，避免循环
-    if (request.url.includes('/auth/refresh')) {
+    // 跳过刷新 token 请求和带有自定义头部的请求，避免循环
+    if (request.url.includes('/auth/refresh') || request.headers.has('X-Skip-Interceptor')) {
       return next.handle(request);
     }
 

@@ -41,7 +41,7 @@ export class UserProfileComponent implements OnInit {
   loadUserProfile() {
     const user = this.authService.getCurrentUser();
     if (user) {
-      this.userService.getUserById(user.id).subscribe({
+      this.userService.getUserById(user._id).subscribe({
         next: (userData) => {
           this.profileForm.patchValue({
             name: userData.name,
@@ -69,7 +69,7 @@ export class UserProfileComponent implements OnInit {
     const user = this.authService.getCurrentUser();
     if (!user) return;
 
-    this.userService.updateUserProfile(user.id, this.profileForm.value).subscribe({
+    this.userService.updateUserProfile(user._id, this.profileForm.value).subscribe({
       next: (updatedUser) => {
         // 更新本地存储的用户信息
         localStorage.setItem('user', JSON.stringify({
@@ -124,7 +124,7 @@ export class UserProfileComponent implements OnInit {
       newPassword: this.passwordForm.get('newPassword')?.value
     };
 
-    this.userService.changePassword(user.id, passwordData).subscribe({
+    this.userService.changePassword(user._id, passwordData).subscribe({
       next: () => {
         this.success = '密码修改成功';
         this.passwordForm.reset();

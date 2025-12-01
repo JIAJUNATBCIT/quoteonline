@@ -1,102 +1,183 @@
-<div class="container-fluid py-4">
-  <h1 class="mb-4">仪表板</h1>
+<div class="container-fluid py-4 dashboard-content">
+  <!-- 页面标题 -->
+  <div class="d-flex align-items-center mb-4">
+    <i class="bi bi-speedometer2 me-3 fs-2 text-primary"></i>
+    <div>
+      <h1 class="mb-0 fw-bold">仪表板</h1>
+      <p class="text-muted mb-0">欢迎回来，{{ authService.getCurrentUser()?.name }}</p>
+    </div>
+  </div>
   
   <!-- 统计卡片 -->
-  <div class="row mb-4 stats-row g-2 g-md-3">
+  <div class="row mb-4 g-3 stats-row">
     <div class="col" *ngIf="authService.hasRole('customer')">
-      <div class="card text-white bg-primary h-100">
-        <div class="card-body">
-          <h5 class="card-title">我的询价单</h5>
-          <h2 class="card-text">{{ quotes.length }}</h2>
+      <div class="card stats-card bg-gradient-primary text-white h-100 shadow-sm">
+        <div class="card-body d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-2 opacity-75">
+              <i class="bi bi-file-earmark-text me-2"></i>我的询价单
+            </h6>
+            <h2 class="mb-0 fw-bold">{{ quotes.length }}</h2>
+            <small class="opacity-75">总计</small>
+          </div>
+          <div class="stats-icon">
+            <i class="bi bi-file-earmark-text fs-1 opacity-25"></i>
+          </div>
         </div>
       </div>
     </div>
     
     <div class="col" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
-      <div class="card text-white bg-warning h-100">
-        <div class="card-body">
-          <h5 class="card-title">待处理</h5>
-          <h2 class="card-text">{{ getQuoteCountByStatus('pending') }}</h2>
+      <div class="card stats-card bg-gradient-warning text-dark h-100 shadow-sm">
+        <div class="card-body d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-2 opacity-75">
+              <i class="bi bi-clock-history me-2"></i>待处理
+            </h6>
+            <h2 class="mb-0 fw-bold">{{ getQuoteCountByStatus('pending') }}</h2>
+            <small class="opacity-75">等待分配</small>
+          </div>
+          <div class="stats-icon">
+            <i class="bi bi-clock-history fs-1 opacity-25"></i>
+          </div>
         </div>
       </div>
     </div>
     
     <div class="col" *ngIf="authService.hasRole('supplier')">
-      <div class="card text-white bg-info h-100">
-        <div class="card-body">
-          <h5 class="card-title">待处理</h5>
-          <h2 class="card-text">{{ getQuoteCountByStatus('pending') }}</h2>
+      <div class="card stats-card bg-gradient-info text-white h-100 shadow-sm">
+        <div class="card-body d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-2 opacity-75">
+              <i class="bi bi-hourglass-split me-2"></i>待处理
+            </h6>
+            <h2 class="mb-0 fw-bold">{{ getQuoteCountByStatus('pending') }}</h2>
+            <small class="opacity-75">等待报价</small>
+          </div>
+          <div class="stats-icon">
+            <i class="bi bi-hourglass-split fs-1 opacity-25"></i>
+          </div>
         </div>
       </div>
     </div>
     
     <div class="col" *ngIf="authService.hasRole('supplier')">
-      <div class="card text-white bg-danger h-100">
-        <div class="card-body">
-          <h5 class="card-title">不报价</h5>
-          <h2 class="card-text">{{ getQuoteCountByStatus('rejected') }}</h2>
+      <div class="card stats-card bg-gradient-danger text-white h-100 shadow-sm">
+        <div class="card-body d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-2 opacity-75">
+              <i class="bi bi-x-circle me-2"></i>不报价
+            </h6>
+            <h2 class="mb-0 fw-bold">{{ getQuoteCountByStatus('rejected') }}</h2>
+            <small class="opacity-75">已拒绝</small>
+          </div>
+          <div class="stats-icon">
+            <i class="bi bi-x-circle fs-1 opacity-25"></i>
+          </div>
         </div>
       </div>
     </div>
     
     <div class="col" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
-      <div class="card text-white bg-info h-100">
-        <div class="card-body">
-          <h5 class="card-title">供应商已报价</h5>
-          <h2 class="card-text">{{ getQuoteCountByStatus('supplier_quoted') }}</h2>
+      <div class="card stats-card bg-gradient-info text-white h-100 shadow-sm">
+        <div class="card-body d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-2 opacity-75">
+              <i class="bi bi-check-circle me-2"></i>供应商已报价
+            </h6>
+            <h2 class="mb-0 fw-bold">{{ getQuoteCountByStatus('supplier_quoted') }}</h2>
+            <small class="opacity-75">待核价</small>
+          </div>
+          <div class="stats-icon">
+            <i class="bi bi-check-circle fs-1 opacity-25"></i>
+          </div>
         </div>
       </div>
     </div>
     
     <div class="col" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
-      <div class="card text-white bg-secondary h-100">
-        <div class="card-body">
-          <h5 class="card-title">处理中</h5>
-          <h2 class="card-text">{{ getQuoteCountByStatus('in_progress') }}</h2>
+      <div class="card stats-card bg-gradient-secondary text-white h-100 shadow-sm">
+        <div class="card-body d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-2 opacity-75">
+              <i class="bi bi-gear me-2"></i>处理中
+            </h6>
+            <h2 class="mb-0 fw-bold">{{ getQuoteCountByStatus('in_progress') }}</h2>
+            <small class="opacity-75">进行中</small>
+          </div>
+          <div class="stats-icon">
+            <i class="bi bi-gear fs-1 opacity-25"></i>
+          </div>
         </div>
       </div>
     </div>
     
     <div class="col" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
-      <div class="card text-white bg-danger h-100">
-        <div class="card-body">
-          <h5 class="card-title">不报价</h5>
-          <h2 class="card-text">{{ getQuoteCountByStatus('rejected') }}</h2>
+      <div class="card stats-card bg-gradient-danger text-white h-100 shadow-sm">
+        <div class="card-body d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-2 opacity-75">
+              <i class="bi bi-x-circle me-2"></i>不报价
+            </h6>
+            <h2 class="mb-0 fw-bold">{{ getQuoteCountByStatus('rejected') }}</h2>
+            <small class="opacity-75">已拒绝</small>
+          </div>
+          <div class="stats-icon">
+            <i class="bi bi-x-circle fs-1 opacity-25"></i>
+          </div>
         </div>
       </div>
     </div>
     
     <div class="col">
-      <div class="card text-white bg-success h-100">
-        <div class="card-body">
-          <h5 class="card-title">已报价</h5>
-          <h2 class="card-text">{{ getQuoteCountByStatus('quoted') }}</h2>
+      <div class="card stats-card bg-gradient-success text-white h-100 shadow-sm">
+        <div class="card-body d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="card-title mb-2 opacity-75">
+              <i class="bi bi-check2-circle me-2"></i>已报价
+            </h6>
+            <h2 class="mb-0 fw-bold">{{ getQuoteCountByStatus('quoted') }}</h2>
+            <small class="opacity-75">已完成</small>
+          </div>
+          <div class="stats-icon">
+            <i class="bi bi-check2-circle fs-1 opacity-25"></i>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- 询价单列表 -->
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h5 class="mb-0">询价单管理</h5>
-      <div class="d-flex align-items-center gap-2">
-        <!-- 搜索框 -->
-        <div class="input-group" style="width: 300px;">
-          <span class="input-group-text">
-            <i class="bi bi-search"></i>
-          </span>
-          <input 
-            type="text" 
-            class="form-control" 
-            placeholder="搜索询价单..." 
-            [(ngModel)]="searchTerm" 
-            (input)="onSearchChange()"
-          >
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom py-3">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <h5 class="mb-0 fw-bold">
+            <i class="bi bi-list-ul me-2 text-primary"></i>询价单管理
+          </h5>
         </div>
-        <a *ngIf="authService.hasRole('customer')" routerLink="/quotes/create" class="btn btn-primary">
-          创建询价单
-        </a>
+        <div class="col-md-6">
+          <div class="d-flex align-items-center justify-content-md-end gap-2">
+            <!-- 搜索框 -->
+            <div class="search-box">
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0">
+                  <i class="bi bi-search text-muted"></i>
+                </span>
+                <input 
+                  type="text" 
+                  class="form-control border-start-0" 
+                  placeholder="搜索询价单..." 
+                  [(ngModel)]="searchTerm" 
+                  (input)="onSearchChange()"
+                >
+              </div>
+            </div>
+            <a *ngIf="authService.hasRole('customer')" routerLink="/quotes/create" class="btn btn-primary">
+              <i class="bi bi-plus-circle me-2"></i>创建询价单
+            </a>
+          </div>
+        </div>
       </div>
     </div>
     <div class="card-body">
@@ -111,11 +192,14 @@
       </div>
 
       <div *ngIf="!loading && filteredQuotes.length === 0" class="text-center py-5">
-        <h5>{{ searchTerm ? '未找到匹配的询价单' : '暂无询价单' }}</h5>
-        <p class="text-muted">{{ searchTerm ? '请尝试其他搜索关键词' : '您还没有创建任何询价单' }}</p>
-        <a *ngIf="authService.hasRole('customer')" routerLink="/quotes/create" class="btn btn-primary">
-          创建第一个询价单
-        </a>
+        <div class="empty-state">
+          <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
+          <h5 class="text-muted">{{ searchTerm ? '未找到匹配的询价单' : '暂无询价单' }}</h5>
+          <p class="text-muted">{{ searchTerm ? '请尝试其他搜索关键词' : '您还没有创建任何询价单' }}</p>
+          <a *ngIf="authService.hasRole('customer')" routerLink="/quotes/create" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>创建第一个询价单
+          </a>
+        </div>
       </div>
 
       <div *ngIf="!loading && filteredQuotes.length > 0">
@@ -141,9 +225,10 @@
           </div>
         </div>
 
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead>
+        <!-- 桌面版表格 -->
+        <div class="table-responsive d-none d-md-block">
+          <table class="table table-hover modern-table">
+            <thead class="table-light">
               <tr>
                 <th (click)="onSort('quoteNumber')" class="sortable-column">
                   询价号
@@ -173,54 +258,72 @@
                   创建时间
                   <i [class]="getSortIcon('createdAt')"></i>
                 </th>
-                <th>操作</th>
+                <th class="text-center">
+                  操作
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let quote of paginatedQuotes" class="clickable-row" (click)="navigateToQuoteDetail(quote._id)">
+              <tr *ngFor="let quote of paginatedQuotes" class="clickable-row modern-row" (click)="navigateToQuoteDetail(quote._id)">
                 <td>
                   <strong class="text-primary">{{ quote.quoteNumber }}</strong>
                 </td>
                 <td>
-                  <strong [class.text-danger]="quote.urgent" class="quote-title">{{ quote.title }}</strong>
-                  <span *ngIf="quote.urgent" class="badge bg-danger ms-2 urgent-badge">加急</span>
-                  <div class="text-muted small quote-description">{{ quote.description }}</div>
+                  <div class="quote-info">
+                    <div class="d-flex align-items-center">
+                      <strong [class.text-danger]="quote.urgent" class="quote-title" [title]="quote.title">{{ quote.title }}</strong>
+                      <span *ngIf="quote.urgent" class="badge bg-danger ms-2 urgent-badge">
+                        加急
+                      </span>
+                    </div>
+                    <div class="text-muted small quote-description" [title]="quote.description">
+                      {{ quote.description }}
+                    </div>
+                  </div>
                 </td>
-                <td *ngIf="authService.hasRole('customer') || authService.hasRole('quoter') || authService.hasRole('admin')">{{ quote.customer.name }}</td>
-                <td *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">{{ quote.quoter?.name || '-' }}</td>
-                <td *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">{{ quote.supplier?.name || '-' }}</td>
+                <td *ngIf="authService.hasRole('customer') || authService.hasRole('quoter') || authService.hasRole('admin')">
+                  {{ quote.customer.name }}
+                </td>
+                <td *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
+                  {{ quote.quoter?.name || '-' }}
+                </td>
+                <td *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
+                  {{ quote.supplier?.name || '-' }}
+                </td>
                 <td>
                   <span class="status-badge status-{{ quote.status }}">
                     {{ getStatusDisplayName(quote.status) }}
                   </span>
                 </td>
-                <td>{{ quote.createdAt | date:'yyyy-MM-dd HH:mm' }}</td>
-                <td (click)="$event.stopPropagation()">
-                  <div class="btn-group btn-group-sm">
+                <td>
+                  <span>{{ quote.createdAt | date:'yyyy-MM-dd HH:mm' }}</span>
+                </td>
+                <td (click)="$event.stopPropagation()" class="text-center">
+                  <div class="btn-group btn-group-sm modern-btn-group">
                     <button 
                       *ngIf="quote.customerFiles && quote.customerFiles.length > 0" 
-                      class="btn btn-outline-secondary"
+                      class="btn btn-outline-secondary modern-btn"
                       (click)="downloadFilesBatch(quote._id, 'customer')"
                       title="下载询价文件">
                       询价
                     </button>
                     <button 
                       *ngIf="quote.supplierFiles && quote.supplierFiles.length > 0" 
-                      class="btn btn-outline-info"
+                      class="btn btn-outline-info modern-btn"
                       (click)="downloadFilesBatch(quote._id, 'supplier')"
                       title="下载供应商报价文件">
                       FOB
                     </button>
                     <button 
                       *ngIf="quote.quoterFiles && quote.quoterFiles.length > 0" 
-                      class="btn btn-outline-success"
+                      class="btn btn-outline-success modern-btn"
                       (click)="downloadFilesBatch(quote._id, 'quoter')"
                       title="下载最终报价文件">
                       报价
                     </button>
                     <button 
                       *ngIf="canDeleteQuote(quote)"
-                      class="btn btn-outline-danger"
+                      class="btn btn-outline-danger modern-btn"
                       (click)="deleteQuote(quote)"
                       title="删除询价单">
                       删除
@@ -230,6 +333,76 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- 移动端卡片布局 -->
+        <div class="d-md-none">
+          <div *ngFor="let quote of paginatedQuotes" class="mobile-quote-card mb-3 p-3 border rounded-3 shadow-sm" (click)="navigateToQuoteDetail(quote._id)">
+            <!-- 询价单头部 -->
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <strong class="text-primary">{{ quote.quoteNumber }}</strong>
+                <span *ngIf="quote.urgent" class="badge bg-danger ms-2 urgent-badge">
+                  加急
+                </span>
+              </div>
+              <span class="status-badge status-{{ quote.status }}">
+                {{ getStatusDisplayName(quote.status) }}
+              </span>
+            </div>
+
+            <!-- 标题和描述 -->
+            <div class="mb-2">
+              <strong [class.text-danger]="quote.urgent" [title]="quote.title">{{ quote.title }}</strong>
+              <div class="text-muted small mt-1" [title]="quote.description">{{ quote.description }}</div>
+            </div>
+
+            <!-- 时间信息 -->
+            <div class="text-muted small mb-3">
+              {{ quote.createdAt | date:'yyyy-MM-dd HH:mm' }}
+            </div>
+
+            <!-- 相关人员信息 -->
+            <div class="row g-2 mb-3 text-muted small" *ngIf="authService.hasRole('customer') || authService.hasRole('quoter') || authService.hasRole('admin')">
+              <div class="col-6" *ngIf="quote.customer">
+                {{ quote.customer.name }}
+              </div>
+              <div class="col-6" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
+                {{ quote.quoter?.name || '-' }}
+              </div>
+              <div class="col-6" *ngIf="authService.hasRole('quoter') || authService.hasRole('admin')">
+                {{ quote.supplier?.name || '-' }}
+              </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="d-flex gap-2 flex-wrap" (click)="$event.stopPropagation()">
+              <button 
+                *ngIf="quote.customerFiles && quote.customerFiles.length > 0" 
+                class="btn btn-sm btn-outline-secondary"
+                (click)="downloadFilesBatch(quote._id, 'customer')">
+                询价
+              </button>
+              <button 
+                *ngIf="quote.supplierFiles && quote.supplierFiles.length > 0" 
+                class="btn btn-sm btn-outline-info"
+                (click)="downloadFilesBatch(quote._id, 'supplier')">
+                FOB
+              </button>
+              <button 
+                *ngIf="quote.quoterFiles && quote.quoterFiles.length > 0" 
+                class="btn btn-sm btn-outline-success"
+                (click)="downloadFilesBatch(quote._id, 'quoter')">
+                报价
+              </button>
+              <button 
+                *ngIf="canDeleteQuote(quote)"
+                class="btn btn-sm btn-outline-danger"
+                (click)="deleteQuote(quote)">
+                删除
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- 分页导航 -->

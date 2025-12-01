@@ -1,4 +1,4 @@
-<div class="container mt-4">
+<div class="container mt-4 user-list-content">
   <div class="card">
     <div class="card-header">
       <h4 class="mb-0">用户管理</h4>
@@ -29,8 +29,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let user of users">
-              <td>{{ user.name }}</td>
+            <tr *ngFor="let user of users" [class.table-warning]="currentUserId === user._id">
+              <td>
+                {{ user.name }}
+                <span *ngIf="currentUserId === user._id" class="badge bg-info ms-2">当前用户</span>
+              </td>
               <td>{{ user.email }}</td>
               <td>
                 <span class="badge" [ngClass]="{
@@ -54,46 +57,44 @@
               <td>
                 <div class="btn-group btn-group-sm">
                   <!-- 角色切换 -->
-                  <div class="dropdown">
-                    <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <div ngbDropdown>
+                    <button class="btn btn-outline-primary dropdown-toggle" 
+                            ngbDropdownToggle
+                            [disabled]="!canModifyUserRole(user)">
                       修改角色
                     </button>
-                    <ul class="dropdown-menu">
-                      <li>
-                        <a class="dropdown-item" 
-                           (click)="updateUserRole(user._id, 'customer')"
-                           [class.active]="user.role === 'customer'">
-                          客户
-                        </a>
-                      </li>
-                      <li>
-                        <a class="dropdown-item" 
-                           (click)="updateUserRole(user._id, 'quoter')"
-                           [class.active]="user.role === 'quoter'">
-                          报价员
-                        </a>
-                      </li>
-                      <li>
-                        <a class="dropdown-item" 
-                           (click)="updateUserRole(user._id, 'admin')"
-                           [class.active]="user.role === 'admin'">
-                          管理员
-                        </a>
-                      </li>
-                      <li>
-                        <a class="dropdown-item" 
-                           (click)="updateUserRole(user._id, 'supplier')"
-                           [class.active]="user.role === 'supplier'">
-                          供应商
-                        </a>
-                      </li>
-                    </ul>
+                    <div ngbDropdownMenu>
+                      <button ngbDropdownItem 
+                              (click)="canModifyUserRole(user) ? updateUserRole(user._id, 'customer') : null"
+                              [class.active]="user.role === 'customer'"
+                              [disabled]="!canModifyUserRole(user)">
+                        客户
+                      </button>
+                      <button ngbDropdownItem 
+                              (click)="canModifyUserRole(user) ? updateUserRole(user._id, 'quoter') : null"
+                              [class.active]="user.role === 'quoter'"
+                              [disabled]="!canModifyUserRole(user)">
+                        报价员
+                      </button>
+                      <button ngbDropdownItem 
+                              (click)="canModifyUserRole(user) ? updateUserRole(user._id, 'admin') : null"
+                              [class.active]="user.role === 'admin'"
+                              [disabled]="!canModifyUserRole(user)">
+                        管理员
+                      </button>
+                      <button ngbDropdownItem 
+                              (click)="canModifyUserRole(user) ? updateUserRole(user._id, 'supplier') : null"
+                              [class.active]="user.role === 'supplier'"
+                              [disabled]="!canModifyUserRole(user)">
+                        供应商
+                      </button>
+                    </div>
                   </div>
                   
                   <!-- 删除用户 -->
                   <button class="btn btn-outline-danger" 
                           (click)="deleteUser(user._id)"
-                          [disabled]="user.role === 'admin'">
+                          [disabled]="user.role === 'admin' || !canModifyUserRole(user)">
                     删除
                   </button>
                 </div>

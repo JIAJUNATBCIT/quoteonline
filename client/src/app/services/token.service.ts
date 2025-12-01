@@ -18,8 +18,11 @@ export class TokenService {
   private refreshTokenSubject: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
 
   constructor(private http: HttpClient) {
-    this.startTokenRefreshTimer();
-    this.setupVisibilityChangeListener();
+    // 延迟初始化定时器，避免在构造函数中立即执行
+    setTimeout(() => {
+      this.startTokenRefreshTimer();
+      this.setupVisibilityChangeListener();
+    }, 1000);
   }
 
   // 获取 access token
@@ -84,7 +87,13 @@ export class TokenService {
   }
 
   private performTokenRefresh(): Observable<TokenResponse> {
-    return this.http.post<TokenResponse>(`${environment.apiUrl}/auth/refresh`, {}).pipe(
+    // 创建一个自定义的请求，避免被拦截器拦截
+    const headers = { 
+      'Content-Type': 'application/json',
+      'X-Skip-Interceptor': 'true' // 添加自定义头部标识
+    };
+    
+    return this.http.post<TokenResponse>(`${environment.apiUrl}/auth/refresh`, {}, { headers }).pipe(
       switchMap(response => {
         this.isRefreshing = false;
         this.setAccessToken(response.accessToken);

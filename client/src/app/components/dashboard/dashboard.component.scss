@@ -1,82 +1,411 @@
-/* Dashboard Component Styles */
+/* Dashboard Component Styles - Enhanced Modern Design */
 
-// 统计卡片自适应样式
+// Dashboard content spacing to avoid navbar overlap
+.dashboard-content {
+  margin-top: 80px; // Height of fixed navbar + some spacing
+}
+
+// Stats row layout for responsive single row display
 .stats-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.75rem;
+  width: 100%;
+  
   .col {
-    min-width: 0; // 允许列收缩
-    flex: 1; // 等比例分配空间
+    flex: 1;
+    min-width: 0; /* 允许缩小到比内容更小 */
     
-    .card {
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
+    .stats-card {
+      width: 100%;
+      min-width: 0; /* 允许卡片缩小 */
       
       .card-body {
-        padding: 1rem 0.75rem; // 减少内边距以适应小屏幕
+        padding: 1.25rem;
         
-        .card-title {
-          font-size: 0.875rem; // 稍小一点的标题字体
-          margin-bottom: 0.5rem;
+        .stats-card-title {
+          font-size: 0.875rem;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
         
-        .card-text {
-          font-size: 1.5rem; // 调整数字大小
+        .stats-card-text {
+          font-size: 1.75rem;
           font-weight: 700;
-          margin: 0;
+          line-height: 1;
         }
       }
     }
   }
 }
 
-// 小屏幕优化
-@media (max-width: 576px) {
-  .stats-row {
-    .col {
-      .card {
-        .card-body {
-          padding: 0.75rem 0.5rem;
-          
-          .card-title {
-            font-size: 0.75rem;
-          }
-          
-          .card-text {
-            font-size: 1.25rem;
-          }
-        }
+// Gradient backgrounds for stats cards
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.bg-gradient-info {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.bg-gradient-danger {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.bg-gradient-secondary {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+}
+
+// Modern stats cards
+.stats-card {
+  border: none;
+  border-radius: 15px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    
+    &::before {
+      left: 100%;
+    }
+    
+    .stats-icon {
+      transform: scale(1.1);
+    }
+  }
+  
+  .card-body {
+    padding: 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .stats-icon {
+    transition: transform 0.3s ease;
+  }
+}
+
+// Search box styling
+.search-box {
+  .input-group {
+    border-radius: 25px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    
+    .input-group-text {
+      background: #f8f9fa;
+      border: none;
+      padding: 0.75rem 1rem;
+    }
+    
+    .form-control {
+      border: none;
+      padding: 0.75rem 1rem 0.75rem 0;
+      
+      &:focus {
+        box-shadow: none;
+        background: white;
       }
     }
   }
 }
 
-// 超小屏幕优化
-@media (max-width: 400px) {
-  .stats-row {
-    .col {
-      .card {
-        .card-body {
-          padding: 0.5rem 0.25rem;
-          
-          .card-title {
-            font-size: 0.7rem;
-            line-height: 1.2;
-          }
-          
-          .card-text {
-            font-size: 1.1rem;
-          }
+// Modern table styling
+.modern-table {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  table-layout: auto;
+  width: 100%;
+  
+  .table-light {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  }
+  
+  th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    border: none;
+    padding: 1rem 0.75rem;
+    white-space: nowrap;
+    
+    // 设置各列的基础宽度
+    &:nth-child(1) { min-width: 100px; width: 100px; } // 询价号
+    &:nth-child(2) { min-width: 200px; width: 30%; } // 标题
+    &:nth-child(3) { min-width: 120px; width: 120px; } // 客户
+    &:nth-child(4) { min-width: 120px; width: 120px; } // 报价员
+    &:nth-child(5) { min-width: 120px; width: 120px; } // 供应商
+    &:nth-child(6) { min-width: 100px; width: 100px; } // 状态
+    &:nth-child(7) { min-width: 140px; width: 140px; } // 创建时间
+    &:nth-child(8) { min-width: 200px; width: auto; } // 操作
+  }
+  
+  td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border-top: 1px solid #f1f3f5;
+    
+    // 为标题列设置省略号
+    &:nth-child(2) {
+      max-width: 0;
+      overflow: hidden;
+      
+      .quote-info {
+        width: 100%;
+        
+        .quote-title {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 100%;
+          display: block;
         }
+        
+        .quote-description {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 100%;
+          display: block;
+        }
+      }
+    }
+    
+    // 为其他文本列设置省略号
+    &:nth-child(3),
+    &:nth-child(4),
+    &:nth-child(5) {
+      max-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+.modern-row {
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: #f8f9fa;
+    transform: scale(1.01);
+  }
+  
+  &:active {
+    background-color: #e9ecef;
+  }
+}
+
+.quote-info {
+  .quote-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    line-height: 1.3;
+  }
+  
+  .quote-description {
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+}
+
+.modern-btn-group {
+  .modern-btn {
+    border-radius: 8px;
+    border: 2px solid;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin: 1px;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    &.btn-outline-secondary:hover {
+      background-color: #6c757d;
+      border-color: #6c757d;
+      color: white;
+    }
+    
+    &.btn-outline-info:hover {
+      background-color: #17a2b8;
+      border-color: #17a2b8;
+      color: white;
+    }
+    
+    &.btn-outline-success:hover {
+      background-color: #28a745;
+      border-color: #28a745;
+      color: white;
+    }
+    
+    &.btn-outline-danger:hover {
+      background-color: #dc3545;
+      border-color: #dc3545;
+      color: white;
+    }
+  }
+}
+
+// Empty state styling
+.empty-state {
+  padding: 3rem 1rem;
+  
+  i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+  }
+  
+  h5 {
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  
+  .btn {
+    padding: 0.4rem 1.5rem;
+    padding-top: 1.3rem;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+    min-height: auto;
+    
+    i {
+      margin-right: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .stats-card {
+    .card-body {
+      padding: 1rem;
+    }
+    
+    .stats-icon {
+      font-size: 2.5rem !important;
+    }
+  }
+  
+  .modern-table {
+    font-size: 0.875rem;
+    
+    th {
+      padding: 0.75rem 0.5rem;
+      
+      // 调整小屏幕下的列宽
+      &:nth-child(1) { min-width: 80px; width: 80px; } // 询价号
+      &:nth-child(2) { min-width: 150px; width: 35%; } // 标题
+      &:nth-child(3) { min-width: 80px; width: 80px; } // 客户
+      &:nth-child(4) { min-width: 80px; width: 80px; } // 报价员
+      &:nth-child(5) { min-width: 80px; width: 80px; } // 供应商
+      &:nth-child(6) { min-width: 80px; width: 80px; } // 状态
+      &:nth-child(7) { min-width: 100px; width: 100px; } // 创建时间
+      &:nth-child(8) { min-width: 150px; width: auto; } // 操作
+    }
+    
+    td {
+      padding: 0.75rem 0.5rem;
+    }
+  }
+  
+  .modern-btn-group {
+    .modern-btn {
+      padding: 0.375rem 0.5rem;
+      font-size: 0.75rem;
+      
+      i {
+        display: none;
       }
     }
   }
 }
+
+// Animation for cards
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stats-card {
+  animation: fadeInUp 0.6s ease-out;
+  
+  &:nth-child(1) { animation-delay: 0.1s; }
+  &:nth-child(2) { animation-delay: 0.2s; }
+  &:nth-child(3) { animation-delay: 0.3s; }
+  &:nth-child(4) { animation-delay: 0.4s; }
+}
+
+// Urgent badge animation
+.urgent-badge {
+  animation: urgentPulse 2s infinite;
+}
+
+@keyframes urgentPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+  }
+}
+
+// Sortable column styling
+.sortable-column {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+  }
+  
+  i {
+    font-size: 0.75rem;
+    margin-left: 0.25rem;
+  }
+}
+
+
 
 // 询价单标题样式
 .quote-title {
@@ -372,6 +701,45 @@
   }
 }
 
+// 移动端卡片样式
+.mobile-quote-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  // 紧凑的布局
+  .status-badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+  
+  .urgent-badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+  }
+  
+  // 按钮样式优化
+  .btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    
+    i {
+      font-size: 0.7rem;
+    }
+  }
+}
+
 // Sortable column styles
 .sortable-column {
   cursor: pointer;
@@ -409,6 +777,26 @@
     gap: 1rem;
   }
   
+  .stats-row {
+    gap: 0.5rem;
+    
+    .col {
+      .stats-card {
+        .card-body {
+          padding: 1rem;
+          
+          .stats-card-title {
+            font-size: 0.8rem;
+          }
+          
+          .stats-card-text {
+            font-size: 1.5rem;
+          }
+        }
+      }
+    }
+  }
+  
   .action-buttons {
     flex-direction: column;
   }
@@ -421,5 +809,27 @@
   
   .quote-status {
     align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-row {
+    gap: 0.25rem;
+    
+    .col {
+      .stats-card {
+        .card-body {
+          padding: 0.75rem;
+          
+          .stats-card-title {
+            font-size: 0.75rem;
+          }
+          
+          .stats-card-text {
+            font-size: 1.25rem;
+          }
+        }
+      }
+    }
   }
 }

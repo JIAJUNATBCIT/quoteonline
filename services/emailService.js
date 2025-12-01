@@ -128,10 +128,7 @@ const EmailTemplates = {
               <span class="info-label">描述:</span>
               <span class="info-value">${escapeHtml(quote.description) || '无'}</span>
             </div>
-            <div class="info-row">
-              <span class="info-label">客户留言:</span>
-              <span class="info-value">${escapeHtml(quote.customerMessage) || '无'}</span>
-            </div>
+
             <div class="info-row">
               <span class="info-label">询价文件:</span>
               <span class="info-value">${(quote.customerFiles && quote.customerFiles.length > 0) 
@@ -417,10 +414,7 @@ const EmailTemplates = {
               <span class="info-label">描述:</span>
               <span class="info-value">${escapeHtml(quote.description) || '无'}</span>
             </div>
-            <div class="info-row">
-              <span class="info-label">客户留言:</span>
-              <span class="info-value">${escapeHtml(quote.customerMessage) || '无'}</span>
-            </div>
+
             <div class="info-row">
               <span class="info-label">询价文件:</span>
               <span class="info-value">${(quote.customerFiles && quote.customerFiles.length > 0) 
