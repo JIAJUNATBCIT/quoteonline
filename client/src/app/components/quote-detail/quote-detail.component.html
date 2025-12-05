@@ -107,7 +107,7 @@
           <!-- 个人供应商分配已禁用，请使用群组分配 -->
 
           <!-- 群组分配显示 -->
-          <div class="mb-3">
+          <div class="mb-3" *ngIf="quote && !authService.hasRole('customer')">
             <label class="form-label fw-bold">分配群组:</label>
             <div *ngIf="quote.assignedGroups && quote.assignedGroups.length > 0" class="d-flex flex-wrap gap-2">
               <span *ngFor="let group of quote.assignedGroups" 

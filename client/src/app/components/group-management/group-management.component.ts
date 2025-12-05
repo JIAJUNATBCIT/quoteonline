@@ -23,13 +23,13 @@ export class GroupManagementComponent implements OnInit, OnDestroy {
   // 表单数据
   groupForm: CreateGroupData = {
     name: '',
-    description: '',
-    color: '#007bff'
+    description: ''
   };
   
   editForm: UpdateGroupData = {};
   selectedGroup: Group | null = null;
   selectedSuppliers: string[] = [];
+  filteredSuppliers: any[] = [];
 
   private userSubscription: Subscription | null = null;
 
@@ -78,6 +78,7 @@ export class GroupManagementComponent implements OnInit, OnDestroy {
     this.userService.getSuppliers().subscribe({
       next: (suppliers) => {
         this.suppliers = suppliers;
+        this.filteredSuppliers = suppliers;
       },
       error: (error) => {
         console.error('加载供应商失败:', error);
@@ -88,8 +89,7 @@ export class GroupManagementComponent implements OnInit, OnDestroy {
   openCreateModal() {
     this.groupForm = {
       name: '',
-      description: '',
-      color: '#007bff'
+      description: ''
     };
     this.showCreateModal = true;
     this.cdr.detectChanges(); // 强制更新UI
@@ -123,7 +123,6 @@ export class GroupManagementComponent implements OnInit, OnDestroy {
     this.editForm = {
       name: group.name,
       description: group.description,
-      color: group.color,
       isActive: group.isActive
     };
     this.showEditModal = true;
@@ -177,7 +176,9 @@ export class GroupManagementComponent implements OnInit, OnDestroy {
 
   openAssignModal(group: Group) {
     this.selectedGroup = group;
-    this.selectedSuppliers = [];
+    // 预选已经在群组中的供应商
+    this.selectedSuppliers = group.users ? group.users.map(user => user._id) : [];
+    this.filteredSuppliers = this.suppliers;
     this.showAssignModal = true;
     this.cdr.detectChanges(); // 强制更新UI
   }
@@ -190,8 +191,7 @@ export class GroupManagementComponent implements OnInit, OnDestroy {
   }
 
   assignUsersToGroup() {
-    if (!this.selectedGroup || this.selectedSuppliers.length === 0) {
-      alert('请选择要分配的供应商');
+    if (!this.selectedGroup) {
       return;
     }
 
@@ -199,11 +199,14 @@ export class GroupManagementComponent implements OnInit, OnDestroy {
       next: () => {
         this.loadGroups();
         this.closeAssignModal();
-        alert('用户分配成功');
+        const message = this.selectedSuppliers.length === 0 
+          ? '已更新群组成员' 
+          : `已更新群组成员，当前共 ${this.selectedSuppliers.length} 个供应商`;
+        alert(message);
       },
       error: (error) => {
-        console.error('分配用户失败:', error);
-        alert('分配用户失败');
+        console.error('更新群组成员失败:', error);
+        alert('更新群组成员失败');
       }
     });
   }
@@ -219,6 +222,29 @@ export class GroupManagementComponent implements OnInit, OnDestroy {
       if (index > -1) {
         this.selectedSuppliers.splice(index, 1);
       }
+    }
+  }
+
+  toggleSupplierSelection(supplierId: string) {
+    const index = this.selectedSuppliers.indexOf(supplierId);
+    if (index > -1) {
+      this.selectedSuppliers.splice(index, 1);
+    } else {
+      this.selectedSuppliers.push(supplierId);
+    }
+  }
+
+  filterSuppliers(event: any) {
+    const searchTerm = event.target.value.toLowerCase();
+    
+    if (!searchTerm) {
+      this.filteredSuppliers = this.suppliers;
+    } else {
+      this.filteredSuppliers = this.suppliers.filter(supplier => 
+        supplier.name.toLowerCase().includes(searchTerm) ||
+        supplier.email.toLowerCase().includes(searchTerm) ||
+        (supplier.company && supplier.company.toLowerCase().includes(searchTerm))
+      );
     }
   }
 

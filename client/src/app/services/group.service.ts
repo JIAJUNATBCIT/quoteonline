@@ -29,13 +29,11 @@ export interface GroupUser {
 export interface CreateGroupData {
   name: string;
   description?: string;
-  color?: string;
 }
 
 export interface UpdateGroupData {
   name?: string;
   description?: string;
-  color?: string;
   isActive?: boolean;
 }
 

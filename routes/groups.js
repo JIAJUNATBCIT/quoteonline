@@ -7,7 +7,7 @@ const { auth } = require('../middleware/auth');
 // 获取所有群组
 router.get('/', auth, async (req, res) => {
   try {
-    const groups = await Group.find({ isActive: true })
+    const groups = await Group.find({})
       .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
 
@@ -163,7 +163,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// 分配用户到群组
+// 分配用户到群组（设置完整用户列表）
 router.post('/:id/users', auth, async (req, res) => {
   try {
     const { userIds } = req.body;
@@ -179,25 +179,39 @@ router.post('/:id/users', auth, async (req, res) => {
     }
 
     // 验证用户都是供应商
-    const users = await User.find({ 
-      _id: { $in: userIds },
-      role: 'supplier'
-    });
+    if (userIds && userIds.length > 0) {
+      const users = await User.find({ 
+        _id: { $in: userIds },
+        role: 'supplier'
+      });
 
-    if (users.length !== userIds.length) {
-      return res.status(400).json({ message: '只能分配供应商用户到群组' });
+      if (users.length !== userIds.length) {
+        return res.status(400).json({ message: '只能分配供应商用户到群组' });
+      }
     }
 
-    // 将用户添加到群组
+    // 获取当前所有供应商
+    const allSuppliers = await User.find({ role: 'supplier' }).select('_id');
+    const allSupplierIds = allSuppliers.map(supplier => supplier._id.toString());
+
+    // 移除所有供应商中的此群组
     await User.updateMany(
-      { _id: { $in: userIds } },
-      { $addToSet: { groups: group._id } }
+      { _id: { $in: allSupplierIds } },
+      { $pull: { groups: group._id } }
     );
 
-    res.json({ message: '用户分配成功' });
+    // 将选中的用户添加到群组
+    if (userIds && userIds.length > 0) {
+      await User.updateMany(
+        { _id: { $in: userIds } },
+        { $addToSet: { groups: group._id } }
+      );
+    }
+
+    res.json({ message: '群组成员更新成功' });
   } catch (error) {
-    console.error('分配用户到群组失败:', error);
-    res.status(500).json({ message: '分配用户到群组失败' });
+    console.error('更新群组成员失败:', error);
+    res.status(500).json({ message: '更新群组成员失败' });
   }
 });
 
